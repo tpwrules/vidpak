@@ -151,51 +151,56 @@ size_t FSE_compressU16_usingCTable (void* dst, size_t maxDstSize,
                               const U16*  src, size_t srcSize,
                               const FSE_CTable* ct)
 {
-    const U16* const istart = src;
+    const U16* const istart = (const U16*) src;
     const U16* const iend = istart + srcSize;
-    const U16* ip;
+    const U16* ip=iend;
 
-    BYTE* op = (BYTE*) dst;
     BIT_CStream_t bitC;
-    FSE_CState_t CState;
-
+    FSE_CState_t CState1, CState2;
 
     /* init */
-    BIT_initCStream(&bitC, op, maxDstSize);
-    FSE_initCState(&CState, ct);
+    if (srcSize <= 2) return 0;
+    { size_t const initError = BIT_initCStream(&bitC, dst, maxDstSize);
+      if (FSE_isError(initError)) return 0; /* not enough space available to write a bitstream */ }
 
-    ip=iend;
-
-    /* join to even */
     if (srcSize & 1) {
-        FSE_encodeSymbol(&bitC, &CState, *--ip);
+        FSE_initCState2(&CState1, ct, *--ip);
+        FSE_initCState2(&CState2, ct, *--ip);
+        FSE_encodeSymbol(&bitC, &CState1, *--ip);
         BIT_flushBits(&bitC);
+    } else {
+        FSE_initCState2(&CState2, ct, *--ip);
+        FSE_initCState2(&CState1, ct, *--ip);
     }
 
     /* join to mod 4 */
-    if (srcSize & 2) {
-        FSE_encodeSymbol(&bitC, &CState, *--ip);
-        FSE_encodeSymbol(&bitC, &CState, *--ip);
+    srcSize -= 2;
+    if ((sizeof(bitC.bitContainer)*8 > FSE_MAX_TABLELOG*4+7 ) && (srcSize & 2)) {  /* test bit 2 */
+        FSE_encodeSymbol(&bitC, &CState2, *--ip);
+        FSE_encodeSymbol(&bitC, &CState1, *--ip);
         BIT_flushBits(&bitC);
     }
 
     /* 2 or 4 encoding per loop */
-    while (ip>istart) {
-        FSE_encodeSymbol(&bitC, &CState, *--ip);
+    while ( ip>istart ) {
 
-        if (sizeof(size_t)*8 < FSE_MAX_TABLELOG*2+7 )  /* This test must be static */
+        FSE_encodeSymbol(&bitC, &CState2, *--ip);
+
+        if (sizeof(bitC.bitContainer)*8 < FSE_MAX_TABLELOG*2+7 )   /* this test must be static */
             BIT_flushBits(&bitC);
 
-        FSE_encodeSymbol(&bitC, &CState, *--ip);
+        FSE_encodeSymbol(&bitC, &CState1, *--ip);
 
-        if (sizeof(size_t)*8 > FSE_MAX_TABLELOG*4+7 ) {  /* This test must be static */
-            FSE_encodeSymbol(&bitC, &CState, *--ip);
-            FSE_encodeSymbol(&bitC, &CState, *--ip);
+        if (sizeof(bitC.bitContainer)*8 > FSE_MAX_TABLELOG*4+7 ) {  /* this test must be static */
+            FSE_encodeSymbol(&bitC, &CState2, *--ip);
+            FSE_encodeSymbol(&bitC, &CState1, *--ip);
         }
+
         BIT_flushBits(&bitC);
     }
 
-    FSE_flushCState(&bitC, &CState);
+    FSE_flushCState(&bitC, &CState2);
+    FSE_flushCState(&bitC, &CState1);
     return BIT_closeCStream(&bitC);
 }
 
@@ -255,17 +260,14 @@ size_t FSE_compressU16(void* dst, size_t maxDstSize,
 *  U16 Decompression functions
 *********************************************************/
 
-U16 FSE_decodeSymbolU16(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD)
+MEM_STATIC U16 FSE_decodeSymbolU16(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD)
 {
-    const FSE_decode_tU16 DInfo = ((const FSE_decode_tU16*)(DStatePtr->table))[DStatePtr->state];
-    U16 symbol;
-    size_t lowBits;
-    const U32 nbBits = DInfo.nbBits;
+    FSE_decode_tU16 const DInfo = ((const FSE_decode_tU16*)(DStatePtr->table))[DStatePtr->state];
+    U32 const nbBits = DInfo.nbBits;
+    U16 const symbol = DInfo.symbol;
+    size_t const lowBits = BIT_readBits(bitD, nbBits);
 
-    symbol = (U16)(DInfo.symbol);
-    lowBits = BIT_readBits(bitD, nbBits);
     DStatePtr->state = DInfo.newState + lowBits;
-
     return symbol;
 }
 
@@ -274,28 +276,57 @@ size_t FSE_decompressU16_usingDTable (U16* dst, size_t maxDstSize,
                                const void* cSrc, size_t cSrcSize,
                                const FSE_DTable* dt)
 {
-    U16* const ostart = dst;
+    U16* const ostart = (U16*) dst;
     U16* op = ostart;
-    U16* const oend = ostart + maxDstSize;
+    U16* const omax = op + maxDstSize;
+    U16* const olimit = omax-3;
+
     BIT_DStream_t bitD;
-    FSE_DState_t state;
+    FSE_DState_t state1;
+    FSE_DState_t state2;
 
     /* Init */
-    memset(&bitD, 0, sizeof(bitD));
-    BIT_initDStream(&bitD, cSrc, cSrcSize);
-    FSE_initDState(&state, &bitD, dt);
+    CHECK_F(BIT_initDStream(&bitD, cSrc, cSrcSize));
 
-    while((BIT_reloadDStream(&bitD) < BIT_DStream_completed) && (op<oend)) {
-        *op++ = FSE_decodeSymbolU16(&state, &bitD);
+    FSE_initDState(&state1, &bitD, dt);
+    FSE_initDState(&state2, &bitD, dt);
+
+    /* 4 symbols per loop */
+    for ( ; (BIT_reloadDStream(&bitD)==BIT_DStream_unfinished) & (op<olimit) ; op+=4) {
+        op[0] = FSE_decodeSymbolU16(&state1, &bitD);
+
+        if (FSE_MAX_TABLELOG*2+7 > sizeof(bitD.bitContainer)*8)    /* This test must be static */
+            BIT_reloadDStream(&bitD);
+
+        op[1] = FSE_decodeSymbolU16(&state2, &bitD);
+
+        if (FSE_MAX_TABLELOG*4+7 > sizeof(bitD.bitContainer)*8)    /* This test must be static */
+            { if (BIT_reloadDStream(&bitD) > BIT_DStream_unfinished) { op+=2; break; } }
+
+        op[2] = FSE_decodeSymbolU16(&state1, &bitD);
+
+        if (FSE_MAX_TABLELOG*2+7 > sizeof(bitD.bitContainer)*8)    /* This test must be static */
+            BIT_reloadDStream(&bitD);
+
+        op[3] = FSE_decodeSymbolU16(&state2, &bitD);
     }
 
-    if (!BIT_endOfDStream(&bitD)) return ERROR(corruption_detected);
+    /* tail */
+    /* note : BIT_reloadDStream(&bitD) >= FSE_DStream_partiallyFilled; Ends at exactly BIT_DStream_completed */
+    while (1) {
+        if (op>(omax-2)) return ERROR(dstSize_tooSmall);
+        *op++ = FSE_decodeSymbolU16(&state1, &bitD);
+        if (BIT_reloadDStream(&bitD)==BIT_DStream_overflow) {
+            *op++ = FSE_decodeSymbolU16(&state2, &bitD);
+            break;
+        }
 
-    while (state.state && op<oend) {
-        *op++ = FSE_decodeSymbolU16(&state, &bitD);
-    }
-
-    if (state.state) return ERROR(corruption_detected);
+        if (op>(omax-2)) return ERROR(dstSize_tooSmall);
+        *op++ = FSE_decodeSymbolU16(&state2, &bitD);
+        if (BIT_reloadDStream(&bitD)==BIT_DStream_overflow) {
+            *op++ = FSE_decodeSymbolU16(&state1, &bitD);
+            break;
+    }   }
 
     return op-ostart;
 }
