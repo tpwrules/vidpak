@@ -50,6 +50,7 @@
 /* **************************************************************
 *  Includes
 *****************************************************************/
+#include <assert.h>
 #include "fseU16.h"
 #define FSEU16_SYMBOLVALUE_ABSOLUTEMAX 4095
 #if (FSEU16_MAX_SYMBOL_VALUE > FSEU16_SYMBOLVALUE_ABSOLUTEMAX)
@@ -77,10 +78,11 @@
 ****************************************************************/
 typedef struct {
     unsigned short newState;
-    unsigned nbBits : 4;
-    unsigned symbol : 12;
+    unsigned short nbBits : 4;
+    unsigned short symbol : 12;
 } FSE_decode_tU16;    /* Note : the size of this struct must be 4 */
 
+static_assert(sizeof(FSE_decode_tU16) == 4, "size of FSE_decode_tU16 must be 4!");
 
 /* *******************************************************************
 *  Include type-specific functions from fse.c (C template emulation)
