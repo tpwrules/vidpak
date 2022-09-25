@@ -176,7 +176,7 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
                 huffWeight[n+1] = ip[n/2] & 15;
     }   }   }
     else  {   /* header compressed with FSE (normal case) */
-        FSE_DTable fseWorkspace[FSE_DTABLE_SIZE_U32(6)];  /* 6 is max possible tableLog for HUF header (maybe even 5, to be tested) */
+        FSE_DTable fseWorkspace[FSE_DTABLE_SIZE_U64(6)];  /* 6 is max possible tableLog for HUF header (maybe even 5, to be tested) */
         if (iSize+1 > srcSize) return ERROR(srcSize_wrong);
         oSize = FSE_decompress_wksp(huffWeight, hwSize-1, ip+1, iSize, fseWorkspace, 6);   /* max (hwSize-1) values decoded, as last one is implied */
         if (FSE_isError(oSize)) return oSize;

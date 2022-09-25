@@ -60,7 +60,7 @@
 FSE_DTable* FSE_createDTable (unsigned tableLog)
 {
     if (tableLog > FSE_TABLELOG_ABSOLUTE_MAX) tableLog = FSE_TABLELOG_ABSOLUTE_MAX;
-    return (FSE_DTable*)malloc( FSE_DTABLE_SIZE_U32(tableLog) * sizeof (U32) );
+    return (FSE_DTable*)malloc( FSE_DTABLE_SIZE_U64(tableLog) * sizeof (U64) );
 }
 
 void FSE_freeDTable (FSE_DTable* dt)
@@ -274,7 +274,7 @@ size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size
 }
 
 
-typedef FSE_DTable DTable_max_t[FSE_DTABLE_SIZE_U32(FSE_MAX_TABLELOG)];
+typedef FSE_DTable DTable_max_t[FSE_DTABLE_SIZE_U64(FSE_MAX_TABLELOG)];
 
 size_t FSE_decompress(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize)
 {

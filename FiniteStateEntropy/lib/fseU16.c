@@ -78,11 +78,12 @@
 ****************************************************************/
 typedef struct {
     unsigned short newState;
+    unsigned short symbol;
     unsigned short nbBits : 4;
-    unsigned short symbol : 12;
-} FSE_decode_tU16;    /* Note : the size of this struct must be 4 */
+    unsigned short reserved;
+} FSE_decode_tU16;    /* Note : the size of this struct must be 8 */
 
-static_assert(sizeof(FSE_decode_tU16) == 4, "size of FSE_decode_tU16 must be 4!");
+static_assert(sizeof(FSE_decode_tU16) == 8, "size of FSE_decode_tU16 must be 8!");
 
 /* *******************************************************************
 *  Include type-specific functions from fse.c (C template emulation)
@@ -334,7 +335,7 @@ size_t FSE_decompressU16_usingDTable (U16* dst, size_t maxDstSize,
 }
 
 
-typedef FSE_DTable DTable_max_t[FSE_DTABLE_SIZE_U32(FSE_MAX_TABLELOG)];
+typedef FSE_DTable DTable_max_t[FSE_DTABLE_SIZE_U64(FSE_MAX_TABLELOG)];
 
 size_t FSE_decompressU16(U16* dst, size_t maxDstSize,
                   const void* cSrc, size_t cSrcSize)

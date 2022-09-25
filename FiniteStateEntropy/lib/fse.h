@@ -230,7 +230,7 @@ FSE_PUBLIC_API size_t FSE_readNCount (short* normalizedCounter,
 
 /*! Constructor and Destructor of FSE_DTable.
     Note that its size depends on 'tableLog' */
-typedef unsigned FSE_DTable;   /* don't allocate that. It's just a way to be more restrictive than void* */
+typedef unsigned long long FSE_DTable;   /* don't allocate that. It's just a way to be more restrictive than void* */
 FSE_PUBLIC_API FSE_DTable* FSE_createDTable(unsigned tableLog);
 FSE_PUBLIC_API void        FSE_freeDTable(FSE_DTable* dt);
 
@@ -293,11 +293,11 @@ If there is an error, the function will return an error code, which can be teste
 
 /* It is possible to statically allocate FSE CTable/DTable as a table of FSE_CTable/FSE_DTable using below macros */
 #define FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue)   (1 + (1<<((maxTableLog)-1)) + (((maxSymbolValue)+1)*2))
-#define FSE_DTABLE_SIZE_U32(maxTableLog)                   (1 + (1<<(maxTableLog)))
+#define FSE_DTABLE_SIZE_U64(maxTableLog)                   (1 + (1<<(maxTableLog)))
 
 /* or use the size to malloc() space directly. Pay attention to alignment restrictions though */
 #define FSE_CTABLE_SIZE(maxTableLog, maxSymbolValue)   (FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue) * sizeof(FSE_CTable))
-#define FSE_DTABLE_SIZE(maxTableLog)                   (FSE_DTABLE_SIZE_U32(maxTableLog) * sizeof(FSE_DTable))
+#define FSE_DTABLE_SIZE(maxTableLog)                   (FSE_DTABLE_SIZE_U64(maxTableLog) * sizeof(FSE_DTable))
 
 
 /* *****************************************
@@ -333,7 +333,7 @@ size_t FSE_buildDTable_rle (FSE_DTable* dt, unsigned char symbolValue);
 /**< build a fake FSE_DTable, designed to always generate the same symbolValue */
 
 size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, FSE_DTable* workSpace, unsigned maxLog);
-/**< same as FSE_decompress(), using an externally allocated `workSpace` produced with `FSE_DTABLE_SIZE_U32(maxLog)` */
+/**< same as FSE_decompress(), using an externally allocated `workSpace` produced with `FSE_DTABLE_SIZE_U64(maxLog)` */
 
 typedef enum {
    FSE_repeat_none,  /**< Cannot use the previous table */
@@ -565,14 +565,16 @@ MEM_STATIC U32 FSE_bitCost(const void* symbolTTPtr, U32 tableLog, U32 symbolValu
 typedef struct {
     U16 tableLog;
     U16 fastMode;
-} FSE_DTableHeader;   /* sizeof U32 */
+    U32 reserved;
+} FSE_DTableHeader;   /* sizeof U64 */
 
 typedef struct
 {
     unsigned short newState;
     unsigned char  symbol;
     unsigned char  nbBits;
-} FSE_decode_t;   /* size == U32 */
+    unsigned int   reserved;
+} FSE_decode_t;   /* size == U64 */
 
 MEM_STATIC void FSE_initDState(FSE_DState_t* DStatePtr, BIT_DStream_t* bitD, const FSE_DTable* dt)
 {
