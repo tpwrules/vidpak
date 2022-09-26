@@ -101,10 +101,10 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
     size_t o = 4;
     // prediction of the first row: the pixel's left neighbor
     for (size_t x=dx; x<dx*width; x+=dx) {
-        diff[o+0] = (src0[x] - src0[x-dx]) & 0x7FFF;
-        diff[o+1] = (src1[x] - src1[x-dx]) & 0x7FFF;
-        diff[o+2] = (src2[x] - src2[x-dx]) & 0x7FFF;
-        diff[o+3] = (src3[x] - src3[x-dx]) & 0x7FFF;
+        diff[o+0] = (src0[x] - src0[x-dx]) & 0xFFFF;
+        diff[o+1] = (src1[x] - src1[x-dx]) & 0xFFFF;
+        diff[o+2] = (src2[x] - src2[x-dx]) & 0xFFFF;
+        diff[o+3] = (src3[x] - src3[x-dx]) & 0xFFFF;
         o += 4;
     }
     for (size_t y=1; y<sheight; y++) {
@@ -114,29 +114,29 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
         src3 += dy;
 
         // prediction of the first column: the pixel's top neighbor
-        diff[o+0] = (src0[0] - src0[-dy]) & 0x7FFF;
-        diff[o+1] = (src1[0] - src1[-dy]) & 0x7FFF;
-        diff[o+2] = (src2[0] - src2[-dy]) & 0x7FFF;
-        diff[o+3] = (src3[0] - src3[-dy]) & 0x7FFF;
+        diff[o+0] = (src0[0] - src0[-dy]) & 0xFFFF;
+        diff[o+1] = (src1[0] - src1[-dy]) & 0xFFFF;
+        diff[o+2] = (src2[0] - src2[-dy]) & 0xFFFF;
+        diff[o+3] = (src3[0] - src3[-dy]) & 0xFFFF;
         o += 4;
 
         // prediction of the rest of the pixels: average of left and top
         // neighbors
         for (size_t x=dx; x<dx*width; x+=dx) {
-            uint16_t p0 = (src0[x-dx]+src0[x-dy])>>1;
-            uint16_t p1 = (src1[x-dx]+src1[x-dy])>>1;
-            uint16_t p2 = (src2[x-dx]+src2[x-dy])>>1;
-            uint16_t p3 = (src3[x-dx]+src3[x-dy])>>1;
-            diff[o+0] = (src0[x] - p0) & 0x7FFF;
-            diff[o+1] = (src1[x] - p1) & 0x7FFF;
-            diff[o+2] = (src2[x] - p2) & 0x7FFF;
-            diff[o+3] = (src3[x] - p3) & 0x7FFF;
+            uint16_t p0 = ((uint32_t)src0[x-dx]+(uint32_t)src0[x-dy])>>1;
+            uint16_t p1 = ((uint32_t)src1[x-dx]+(uint32_t)src1[x-dy])>>1;
+            uint16_t p2 = ((uint32_t)src2[x-dx]+(uint32_t)src2[x-dy])>>1;
+            uint16_t p3 = ((uint32_t)src3[x-dx]+(uint32_t)src3[x-dy])>>1;
+            diff[o+0] = (src0[x] - p0) & 0xFFFF;
+            diff[o+1] = (src1[x] - p1) & 0xFFFF;
+            diff[o+2] = (src2[x] - p2) & 0xFFFF;
+            diff[o+3] = (src3[x] - p3) & 0xFFFF;
             o += 4;
         }
     }
 
     // compress the differences
-    size_t ret = FSE_compressU16(dest+8, bytes-8, diff+4, pixels-4, 32767, 14);
+    size_t ret = FSE_compressU16(dest+8, bytes-8, diff+4, pixels-4, 65535, 14);
     if (FSE_isError(ret)) { // something went wrong, bail out
         printf("FSE said: %lu\n", -ret);
         return 0;
@@ -199,10 +199,10 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
     size_t i = 4;
     // prediction of the first row: the pixel's left neighbor
     for (size_t x=dx; x<dx*width; x+=dx) {
-        l0 = (diff[i+0] + l0) & 0x7FFF;
-        l1 = (diff[i+1] + l1) & 0x7FFF;
-        l2 = (diff[i+2] + l2) & 0x7FFF;
-        l3 = (diff[i+3] + l3) & 0x7FFF;
+        l0 = (diff[i+0] + l0) & 0xFFFF;
+        l1 = (diff[i+1] + l1) & 0xFFFF;
+        l2 = (diff[i+2] + l2) & 0xFFFF;
+        l3 = (diff[i+3] + l3) & 0xFFFF;
         dest0[x] = l0; dest1[x] = l1; dest2[x] = l2; dest3[x] = l3;
         i += 4;
     }
@@ -213,24 +213,24 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
         dest3 += dy;
 
         // prediction of the first column: the pixel's top neighbor
-        l0 = (diff[i+0] + dest0[-dy]) & 0x7FFF;
-        l1 = (diff[i+1] + dest1[-dy]) & 0x7FFF;
-        l2 = (diff[i+2] + dest2[-dy]) & 0x7FFF;
-        l3 = (diff[i+3] + dest3[-dy]) & 0x7FFF;
+        l0 = (diff[i+0] + dest0[-dy]) & 0xFFFF;
+        l1 = (diff[i+1] + dest1[-dy]) & 0xFFFF;
+        l2 = (diff[i+2] + dest2[-dy]) & 0xFFFF;
+        l3 = (diff[i+3] + dest3[-dy]) & 0xFFFF;
         dest0[0] = l0; dest1[0] = l1; dest2[0] = l2; dest3[0] = l3;
         i += 4;
 
         // prediction of the rest of the pixels: average of left and top
         // neighbors
         for (size_t x=dx; x<dx*width; x+=dx) {
-            uint16_t p0 = (l0+dest0[x-dy])>>1;
-            uint16_t p1 = (l1+dest1[x-dy])>>1;
-            uint16_t p2 = (l2+dest2[x-dy])>>1;
-            uint16_t p3 = (l3+dest3[x-dy])>>1;
-            l0 = (diff[i+0] + p0) & 0x7FFF;
-            l1 = (diff[i+1] + p1) & 0x7FFF;
-            l2 = (diff[i+2] + p2) & 0x7FFF;
-            l3 = (diff[i+3] + p3) & 0x7FFF;
+            uint16_t p0 = ((uint32_t)l0+(uint32_t)dest0[x-dy])>>1;
+            uint16_t p1 = ((uint32_t)l1+(uint32_t)dest1[x-dy])>>1;
+            uint16_t p2 = ((uint32_t)l2+(uint32_t)dest2[x-dy])>>1;
+            uint16_t p3 = ((uint32_t)l3+(uint32_t)dest3[x-dy])>>1;
+            l0 = (diff[i+0] + p0) & 0xFFFF;
+            l1 = (diff[i+1] + p1) & 0xFFFF;
+            l2 = (diff[i+2] + p2) & 0xFFFF;
+            l3 = (diff[i+3] + p3) & 0xFFFF;
             dest0[x] = l0; dest1[x] = l1; dest2[x] = l2; dest3[x] = l3;
             i += 4;
         }

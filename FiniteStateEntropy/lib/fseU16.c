@@ -53,7 +53,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include "fseU16.h"
-#define FSEU16_SYMBOLVALUE_ABSOLUTEMAX 32767
+#define FSEU16_SYMBOLVALUE_ABSOLUTEMAX 65535
 #if (FSEU16_MAX_SYMBOL_VALUE > FSEU16_SYMBOLVALUE_ABSOLUTEMAX)
 #  error "FSEU16_MAX_SYMBOL_VALUE is too large !"
 #endif
