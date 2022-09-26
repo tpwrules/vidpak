@@ -47,7 +47,7 @@ extern "C" {
 *  Maximum nb of symbol values authorized.
 *  Required for allocation purposes */
 #ifndef FSEU16_MAX_SYMBOL_VALUE
-#  define FSEU16_MAX_SYMBOL_VALUE 8191
+#  define FSEU16_MAX_SYMBOL_VALUE 16383
 #endif
 #ifdef FSE_MAX_SYMBOL_VALUE
 #  undef FSE_MAX_SYMBOL_VALUE

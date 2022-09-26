@@ -41,18 +41,19 @@
 *  Reduced memory usage can improve speed, due to cache effect
 *  Recommended max value is 14, for 16KB, which nicely fits into Intel x86 L1 cache */
 #ifndef FSEU16_MAX_MEMORY_USAGE
-#  define FSEU16_MAX_MEMORY_USAGE 16
+#  define FSEU16_MAX_MEMORY_USAGE 17
 #endif
 #ifndef FSEU16_DEFAULT_MEMORY_USAGE
-#  define FSEU16_DEFAULT_MEMORY_USAGE 15
+#  define FSEU16_DEFAULT_MEMORY_USAGE 17
 #endif
 
 /* **************************************************************
 *  Includes
 *****************************************************************/
 #include <assert.h>
+#include <stdio.h>
 #include "fseU16.h"
-#define FSEU16_SYMBOLVALUE_ABSOLUTEMAX 8191
+#define FSEU16_SYMBOLVALUE_ABSOLUTEMAX 16383
 #if (FSEU16_MAX_SYMBOL_VALUE > FSEU16_SYMBOLVALUE_ABSOLUTEMAX)
 #  error "FSEU16_MAX_SYMBOL_VALUE is too large !"
 #endif
@@ -236,6 +237,7 @@ size_t FSE_compressU16(void* dst, size_t maxDstSize,
     }
     /* Normalize */
     tableLog = FSE_optimalTableLog(tableLog, srcSize, maxSymbolValue);
+    printf("actual tableLog: %d\n", tableLog);
     {   size_t const errorCode = FSE_normalizeCount (norm, tableLog, counting, srcSize, maxSymbolValue);
         if (FSE_isError(errorCode)) return errorCode;
     }

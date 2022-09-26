@@ -641,10 +641,10 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 *  Reduced memory usage can improve speed, due to cache effect
 *  Recommended max value is 14, for 16KB, which nicely fits into Intel x86 L1 cache */
 #ifndef FSE_MAX_MEMORY_USAGE
-#  define FSE_MAX_MEMORY_USAGE 16
+#  define FSE_MAX_MEMORY_USAGE 17
 #endif
 #ifndef FSE_DEFAULT_MEMORY_USAGE
-#  define FSE_DEFAULT_MEMORY_USAGE 13
+#  define FSE_DEFAULT_MEMORY_USAGE 17
 #endif
 #if (FSE_DEFAULT_MEMORY_USAGE > FSE_MAX_MEMORY_USAGE)
 #  error "FSE_DEFAULT_MEMORY_USAGE must be <= FSE_MAX_MEMORY_USAGE"

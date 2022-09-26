@@ -316,7 +316,7 @@ void FSE_freeCTable (FSE_CTable* ct) { free(ct); }
 static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
 {
     U32 minBitsSrc = BIT_highbit32((U32)(srcSize)) + 1;
-    U32 minBitsSymbols = BIT_highbit32(maxSymbolValue) + 2;
+    U32 minBitsSymbols = BIT_highbit32(maxSymbolValue) + 1;
     U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
     assert(srcSize > 1); /* Not supported, RLE should be used instead */
     return minBits;
