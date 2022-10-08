@@ -41,10 +41,10 @@
 *  Reduced memory usage can improve speed, due to cache effect
 *  Recommended max value is 14, for 16KB, which nicely fits into Intel x86 L1 cache */
 #ifndef FSEU16_MAX_MEMORY_USAGE
-#  define FSEU16_MAX_MEMORY_USAGE 18
+#  define FSEU16_MAX_MEMORY_USAGE 19
 #endif
 #ifndef FSEU16_DEFAULT_MEMORY_USAGE
-#  define FSEU16_DEFAULT_MEMORY_USAGE 18
+#  define FSEU16_DEFAULT_MEMORY_USAGE 19
 #endif
 
 /* **************************************************************

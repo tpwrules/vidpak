@@ -505,8 +505,8 @@ MEM_STATIC void FSE_initCState2(FSE_CState_t* statePtr, const FSE_CTable* ct, U3
     FSE_initCState(statePtr, ct);
     {   const FSE_symbolCompressionTransform symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
         const U32* stateTable = (const U32*)(statePtr->stateTable);
-        U32 nbBitsOut  = (U32)((symbolTT.deltaNbBits + (1<<17)) >> 17);
-        statePtr->value = (nbBitsOut << 17) - symbolTT.deltaNbBits;
+        U32 nbBitsOut  = (U32)((symbolTT.deltaNbBits + (1<<18)) >> 18);
+        statePtr->value = (nbBitsOut << 18) - symbolTT.deltaNbBits;
         statePtr->value = stateTable[(statePtr->value >> nbBitsOut) + symbolTT.deltaFindState];
     }
 }
@@ -515,7 +515,7 @@ MEM_STATIC void FSE_encodeSymbol(BIT_CStream_t* bitC, FSE_CState_t* statePtr, un
 {
     FSE_symbolCompressionTransform const symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
     const U32* const stateTable = (const U32*)(statePtr->stateTable);
-    U32 const nbBitsOut  = (U32)((statePtr->value + symbolTT.deltaNbBits) >> 17);
+    U32 const nbBitsOut  = (U32)((statePtr->value + symbolTT.deltaNbBits) >> 18);
     BIT_addBits(bitC, statePtr->value, nbBitsOut);
     statePtr->value = stateTable[ (statePtr->value >> nbBitsOut) + symbolTT.deltaFindState];
 }
@@ -641,10 +641,10 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 *  Reduced memory usage can improve speed, due to cache effect
 *  Recommended max value is 14, for 16KB, which nicely fits into Intel x86 L1 cache */
 #ifndef FSE_MAX_MEMORY_USAGE
-#  define FSE_MAX_MEMORY_USAGE 18
+#  define FSE_MAX_MEMORY_USAGE 19
 #endif
 #ifndef FSE_DEFAULT_MEMORY_USAGE
-#  define FSE_DEFAULT_MEMORY_USAGE 18
+#  define FSE_DEFAULT_MEMORY_USAGE 19
 #endif
 #if (FSE_DEFAULT_MEMORY_USAGE > FSE_MAX_MEMORY_USAGE)
 #  error "FSE_DEFAULT_MEMORY_USAGE must be <= FSE_MAX_MEMORY_USAGE"
@@ -677,7 +677,7 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 #define FSE_DEFAULT_TABLELOG (FSE_DEFAULT_MEMORY_USAGE-2)
 #define FSE_MIN_TABLELOG 5
 
-#define FSE_TABLELOG_ABSOLUTE_MAX 16
+#define FSE_TABLELOG_ABSOLUTE_MAX 17
 #if FSE_MAX_TABLELOG > FSE_TABLELOG_ABSOLUTE_MAX
 #  error "FSE_MAX_TABLELOG > FSE_TABLELOG_ABSOLUTE_MAX is not supported"
 #endif
