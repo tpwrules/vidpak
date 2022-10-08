@@ -70,8 +70,8 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
     U32 const tableSize = 1 << tableLog;
     U32 const tableMask = tableSize - 1;
     void* const ptr = ct;
-    U16* const tableU16 = ( (U16*) ptr) + 2;
-    void* const FSCT = ((U32*)ptr) + 1 /* header */ + (tableLog ? tableSize>>1 : 1) ;
+    U32* const tableU32 = ( (U32*) ptr) + 1;
+    void* const FSCT = ((U32*)ptr) + 1 /* header */ + (tableLog ? tableSize : 1) ;
     FSE_symbolCompressionTransform* const symbolTT = (FSE_symbolCompressionTransform*) (FSCT);
     U32 const step = FSE_TABLESTEP(tableSize);
     U32 cumul[FSE_MAX_SYMBOL_VALUE+2];
@@ -81,9 +81,8 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
 
     /* CTable header */
     if (((size_t)1 << tableLog) * sizeof(FSE_FUNCTION_TYPE) > wkspSize) return ERROR(tableLog_tooLarge);
-    tableU16[-2] = (U16) tableLog;
-    tableU16[-1] = (U16) maxSymbolValue;
-    assert(tableLog < 16);   /* required for threshold strategy to work */
+    tableU32[-1] = (((U32) maxSymbolValue) << 16) | ((U16) tableLog);
+    assert(tableLog < 32);   /* required for threshold strategy to work */
 
     /* For explanations on how to distribute symbol values over the table :
      * http://fastcompression.blogspot.fr/2014/02/fse-distributing-symbol-values.html */
@@ -124,7 +123,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
     /* Build table */
     {   U32 u; for (u=0; u<tableSize; u++) {
         FSE_FUNCTION_TYPE s = tableSymbol[u];   /* note : static analyzer may not understand tableSymbol is properly initialized */
-        tableU16[cumul[s]++] = (U16) (tableSize+u);   /* TableU16 : sorted by symbol order; gives next state value */
+        tableU32[cumul[s]++] = (U32) (tableSize+u);   /* TableU32 : sorted by symbol order; gives next state value */
     }   }
 
     /* Build Symbol Transformation Table */
