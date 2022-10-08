@@ -73,7 +73,7 @@ static size_t HUF_compressWeights (void* dst, size_t dstSize, const void* weight
     BYTE scratchBuffer[1<<MAX_FSE_TABLELOG_FOR_HUFF_HEADER];
 
     unsigned count[HUF_TABLELOG_MAX+1];
-    S16 norm[HUF_TABLELOG_MAX+1];
+    S32 norm[HUF_TABLELOG_MAX+1];
 
     /* init conditions */
     if (wtSize <= 1) return 0;  /* Not compressible */

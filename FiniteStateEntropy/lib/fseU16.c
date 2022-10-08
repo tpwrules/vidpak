@@ -221,7 +221,7 @@ size_t FSE_compressU16(void* dst, size_t maxDstSize,
     BYTE* op = ostart;
 
     U32   counting[FSE_MAX_SYMBOL_VALUE+1] = {0};
-    S16   norm[FSE_MAX_SYMBOL_VALUE+1];
+    S32   norm[FSE_MAX_SYMBOL_VALUE+1];
 
     /* checks */
     if (srcSize <= 1) return srcSize;
@@ -344,7 +344,7 @@ size_t FSE_decompressU16(U16* dst, size_t maxDstSize,
 {
     const BYTE* const istart = (const BYTE*) cSrc;
     const BYTE* ip = istart;
-    short NCount[FSE_MAX_SYMBOL_VALUE+1];
+    int NCount[FSE_MAX_SYMBOL_VALUE+1];
     DTable_max_t dt;
     unsigned maxSymbolValue = FSE_MAX_SYMBOL_VALUE;
     unsigned tableLog;

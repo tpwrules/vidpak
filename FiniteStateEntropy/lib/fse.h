@@ -136,10 +136,10 @@ FSE_PUBLIC_API unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize
 
 /*! FSE_normalizeCount():
     normalize counts so that sum(count[]) == Power_of_2 (2^tableLog)
-    'normalizedCounter' is a table of short, of minimum size (maxSymbolValue+1).
+    'normalizedCounter' is a table of int, of minimum size (maxSymbolValue+1).
     @return : tableLog,
               or an errorCode, which can be tested using FSE_isError() */
-FSE_PUBLIC_API size_t FSE_normalizeCount(short* normalizedCounter, unsigned tableLog,
+FSE_PUBLIC_API size_t FSE_normalizeCount(int* normalizedCounter, unsigned tableLog,
                     const unsigned* count, size_t srcSize, unsigned maxSymbolValue);
 
 /*! FSE_NCountWriteBound():
@@ -152,7 +152,7 @@ FSE_PUBLIC_API size_t FSE_NCountWriteBound(unsigned maxSymbolValue, unsigned tab
     @return : size of the compressed table,
               or an errorCode, which can be tested using FSE_isError(). */
 FSE_PUBLIC_API size_t FSE_writeNCount (void* buffer, size_t bufferSize,
-                                 const short* normalizedCounter,
+                                 const int* normalizedCounter,
                                  unsigned maxSymbolValue, unsigned tableLog);
 
 /*! Constructor and Destructor of FSE_CTable.
@@ -164,7 +164,7 @@ FSE_PUBLIC_API void        FSE_freeCTable (FSE_CTable* ct);
 /*! FSE_buildCTable():
     Builds `ct`, which must be already allocated, using FSE_createCTable().
     @return : 0, or an errorCode, which can be tested using FSE_isError() */
-FSE_PUBLIC_API size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
+FSE_PUBLIC_API size_t FSE_buildCTable(FSE_CTable* ct, const int* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
 
 /*! FSE_compress_usingCTable():
     Compress `src` using `ct` into `dst` which must be already allocated.
@@ -192,7 +192,7 @@ If you are unsure of which tableLog value to use, you can ask FSE_optimalTableLo
 which will provide the optimal valid tableLog given sourceSize, maxSymbolValue, and a user-defined maximum (0 means "default").
 
 The result of FSE_normalizeCount() will be saved into a table,
-called 'normalizedCounter', which is a table of signed short.
+called 'normalizedCounter', which is a table of signed int.
 'normalizedCounter' must be already allocated, and have at least 'maxSymbolValue+1' cells.
 The return value is tableLog if everything proceeded as expected.
 It is 0 if there is a single symbol within distribution.
@@ -224,7 +224,7 @@ If there is an error, the function will return an ErrorCode (which can be tested
     @return : size read from 'rBuffer',
               or an errorCode, which can be tested using FSE_isError().
               maxSymbolValuePtr[0] and tableLogPtr[0] will also be updated with their respective values */
-FSE_PUBLIC_API size_t FSE_readNCount (short* normalizedCounter,
+FSE_PUBLIC_API size_t FSE_readNCount (int* normalizedCounter,
                            unsigned* maxSymbolValuePtr, unsigned* tableLogPtr,
                            const void* rBuffer, size_t rBuffSize);
 
@@ -237,7 +237,7 @@ FSE_PUBLIC_API void        FSE_freeDTable(FSE_DTable* dt);
 /*! FSE_buildDTable():
     Builds 'dt', which must be already allocated, using FSE_createDTable().
     return : 0, or an errorCode, which can be tested using FSE_isError() */
-FSE_PUBLIC_API size_t FSE_buildDTable (FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
+FSE_PUBLIC_API size_t FSE_buildDTable (FSE_DTable* dt, const int* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
 
 /*! FSE_decompress_usingDTable():
     Decompress compressed source `cSrc` of size `cSrcSize` using `dt`
@@ -255,7 +255,7 @@ Tutorial :
 
 The first step is to obtain the normalized frequencies of symbols.
 This can be performed by FSE_readNCount() if it was saved using FSE_writeNCount().
-'normalizedCounter' must be already allocated, and have at least 'maxSymbolValuePtr[0]+1' cells of signed short.
+'normalizedCounter' must be already allocated, and have at least 'maxSymbolValuePtr[0]+1' cells of signed int.
 In practice, that means it's necessary to know 'maxSymbolValue' beforehand,
 or size the table to handle worst case situations (typically 256).
 FSE_readNCount() will provide 'tableLog' and 'maxSymbolValue'.
@@ -324,7 +324,7 @@ size_t FSE_buildCTable_rle (FSE_CTable* ct, unsigned char symbolValue);
  * Same as FSE_buildCTable(), but using an externally allocated scratch buffer (`workSpace`).
  * `wkspSize` must be >= `(1<<tableLog)`.
  */
-size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
+size_t FSE_buildCTable_wksp(FSE_CTable* ct, const int* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
 
 size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits);
 /**< build a fake FSE_DTable, designed to read a flat distribution where each symbol uses nbBits */

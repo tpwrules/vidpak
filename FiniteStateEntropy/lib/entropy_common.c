@@ -38,7 +38,7 @@ const char* HUF_getErrorName(size_t code) { return ERR_getErrorName(code); }
 /*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
-size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
+size_t FSE_readNCount (int* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
                  const void* headerBuffer, size_t hbSize)
 {
     const BYTE* const istart = (const BYTE*) headerBuffer;
@@ -119,7 +119,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
 
             count--;   /* extra accuracy */
             remaining -= count < 0 ? -count : count;   /* -1 means +1 */
-            normalizedCounter[charnum++] = (short)count;
+            normalizedCounter[charnum++] = (int)count;
             previous0 = !count;
             while (remaining < threshold) {
                 nbBits--;

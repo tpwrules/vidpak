@@ -68,11 +68,11 @@ void FSE_freeDTable (FSE_DTable* dt)
     free(dt);
 }
 
-size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
+size_t FSE_buildDTable(FSE_DTable* dt, const int* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
     void* const tdPtr = dt+1;   /* because *dt is unsigned, 32-bits aligned on 32-bits */
     FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*) (tdPtr);
-    U16 symbolNext[FSE_MAX_SYMBOL_VALUE+1];
+    U32 symbolNext[FSE_MAX_SYMBOL_VALUE+1];
 
     U32 const maxSV1 = maxSymbolValue + 1;
     U32 const tableSize = 1 << tableLog;
@@ -86,7 +86,7 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
     {   FSE_DTableHeader DTableH;
         DTableH.tableLog = (U16)tableLog;
         DTableH.fastMode = 1;
-        {   S16 const largeLimit= (S16)(1 << (tableLog-1));
+        {   S32 const largeLimit= (S32)(1 << (tableLog-1));
             U32 s;
             for (s=0; s<maxSV1; s++) {
                 if (normalizedCounter[s]==-1) {
@@ -256,7 +256,7 @@ size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size
 {
     const BYTE* const istart = (const BYTE*)cSrc;
     const BYTE* ip = istart;
-    short counting[FSE_MAX_SYMBOL_VALUE+1];
+    int counting[FSE_MAX_SYMBOL_VALUE+1];
     unsigned tableLog;
     unsigned maxSymbolValue = FSE_MAX_SYMBOL_VALUE;
 
