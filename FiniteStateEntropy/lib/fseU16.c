@@ -41,10 +41,10 @@
 *  Reduced memory usage can improve speed, due to cache effect
 *  Recommended max value is 14, for 16KB, which nicely fits into Intel x86 L1 cache */
 #ifndef FSEU16_MAX_MEMORY_USAGE
-#  define FSEU16_MAX_MEMORY_USAGE 17
+#  define FSEU16_MAX_MEMORY_USAGE 18
 #endif
 #ifndef FSEU16_DEFAULT_MEMORY_USAGE
-#  define FSEU16_DEFAULT_MEMORY_USAGE 17
+#  define FSEU16_DEFAULT_MEMORY_USAGE 18
 #endif
 
 /* **************************************************************
@@ -78,10 +78,9 @@
 *  Local type
 ****************************************************************/
 typedef struct {
-    unsigned short newState;
+    unsigned int newState;
     unsigned short symbol;
-    unsigned short nbBits : 4;
-    unsigned short reserved;
+    unsigned short nbBits;
 } FSE_decode_tU16;    /* Note : the size of this struct must be 8 */
 
 static_assert(sizeof(FSE_decode_tU16) == 8, "size of FSE_decode_tU16 must be 8!");

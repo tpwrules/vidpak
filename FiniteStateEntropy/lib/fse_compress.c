@@ -134,12 +134,12 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
             {
             case  0:
                 /* filling nonetheless, for compatibility with FSE_getMaxNbBits() */
-                symbolTT[s].deltaNbBits = ((tableLog+1) << 16) - (1<<tableLog);
+                symbolTT[s].deltaNbBits = ((tableLog+1) << 17) - (1<<tableLog);
                 break;
 
             case -1:
             case  1:
-                symbolTT[s].deltaNbBits = (tableLog << 16) - (1<<tableLog);
+                symbolTT[s].deltaNbBits = (tableLog << 17) - (1<<tableLog);
                 symbolTT[s].deltaFindState = total - 1;
                 total ++;
                 break;
@@ -147,7 +147,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
                 {
                     U32 const maxBitsOut = tableLog - BIT_highbit32 (normalizedCounter[s]-1);
                     U32 const minStatePlus = normalizedCounter[s] << maxBitsOut;
-                    symbolTT[s].deltaNbBits = (maxBitsOut << 16) - minStatePlus;
+                    symbolTT[s].deltaNbBits = (maxBitsOut << 17) - minStatePlus;
                     symbolTT[s].deltaFindState = total - normalizedCounter[s];
                     total +=  normalizedCounter[s];
     }   }   }   }
@@ -315,7 +315,7 @@ void FSE_freeCTable (FSE_CTable* ct) { free(ct); }
 static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
 {
     U32 minBitsSrc = BIT_highbit32((U32)(srcSize)) + 1;
-    U32 minBitsSymbols = BIT_highbit32(maxSymbolValue) + 0; // needs to be +2 for safety
+    U32 minBitsSymbols = BIT_highbit32(maxSymbolValue) + 1; // needs to be +2 for safety
     U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
     assert(srcSize > 1); /* Not supported, RLE should be used instead */
     return minBits;

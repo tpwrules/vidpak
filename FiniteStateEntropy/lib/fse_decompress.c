@@ -119,7 +119,7 @@ size_t FSE_buildDTable(FSE_DTable* dt, const int* normalizedCounter, unsigned ma
             FSE_FUNCTION_TYPE const symbol = (FSE_FUNCTION_TYPE)(tableDecode[u].symbol);
             U32 const nextState = symbolNext[symbol]++;
             tableDecode[u].nbBits = (BYTE) (tableLog - BIT_highbit32(nextState) );
-            tableDecode[u].newState = (U16) ( (nextState << tableDecode[u].nbBits) - tableSize);
+            tableDecode[u].newState = (U32) ( (nextState << tableDecode[u].nbBits) - tableSize);
     }   }
 
     return 0;

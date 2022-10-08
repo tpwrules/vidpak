@@ -136,7 +136,7 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
     }
 
     // compress the differences
-    size_t ret = FSE_compressU16(dest+8, bytes-8, diff+4, pixels-4, 65535, 15);
+    size_t ret = FSE_compressU16(dest+8, bytes-8, diff+4, pixels-4, 65535, 0);
     if (FSE_isError(ret)) { // something went wrong, bail out
         printf("FSE said: %lu\n", -ret);
         return 0;
