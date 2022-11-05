@@ -236,7 +236,6 @@ size_t FSE_compressU16(void* dst, size_t maxDstSize,
     }
     /* Normalize */
     tableLog = FSE_optimalTableLog(tableLog, srcSize, maxSymbolValue);
-    printf("actual tableLog: %d\n", tableLog);
     {   size_t const errorCode = FSE_normalizeCount (norm, tableLog, counting, srcSize, maxSymbolValue);
         if (FSE_isError(errorCode)) return errorCode;
     }

@@ -1,4 +1,4 @@
 profiles/
 __pycache__
-result
+result*
 *.o
