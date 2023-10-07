@@ -7,7 +7,10 @@ source_dirs = ["vidpak", "FiniteStateEntropy/lib/"]
 source_files = []
 for d in source_dirs:
     for f in pathlib.Path(d).iterdir():
-        if f.suffix in {".c", ".pyx"}:
+        if f.suffix == ".c":
+            if not f.with_suffix(".pyx").exists():
+                source_files.append(str(f))
+        elif f.suffix == ".pyx":
             source_files.append(str(f))
 
 extensions = [
