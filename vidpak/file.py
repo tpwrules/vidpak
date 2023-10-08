@@ -136,24 +136,17 @@ class VidpakFileReader:
 
         if self._rd_index != index: # are we reading the requested frame?
             with self._rd_cond: # nope, so start reading what the caller wants
-                # wait until the worker thread is done reading the previous data
-                while self._rd_busy: self._rd_cond.wait()
-                # if the worker thread crashed, close the vidpak file. the close
-                # function will reraise the exception.
-                if self._rd_exc is not None: self.close()
+                self._rd_wait() # wait for the previous read to complete
                 self._rd_chunks = None # throw out the read data
                 self._rd_index = index # and start it on the desired frame
                 self._rd_busy = True
                 self._rd_cond.notify()
 
         with self._rd_cond:
-            # wait for the worker thread to finish reading the desired frame
-            while self._rd_busy: self._rd_cond.wait()
-            if self._rd_exc is not None: self.close()
+            self._rd_wait() # wait for the desired read to complete
             rd_chunks = self._rd_chunks # get the read data
             self._rd_chunks = None
-            # if requested, start it reading the next frame
-            if prefetch:
+            if prefetch: # if requested, start the worker reading the next frame
                 self._rd_index = index + 1
                 self._rd_busy = True
                 self._rd_cond.notify()
@@ -188,9 +181,7 @@ class VidpakFileReader:
             return self.frame_count
 
         with self._rd_cond:
-            # wait until the worker thread is done so we can access the file
-            while self._rd_busy: self._rd_cond.wait()
-            if self._rd_exc is not None: self.close()
+            self._rd_wait() # wait for the worker so we can access the file
 
         if self._endless: self.frame_count = None
         if max_counted is None:
@@ -267,13 +258,19 @@ class VidpakFileReader:
                 self._rd_busy = False # we're not doing anything any more
                 self._rd_cond.notify()
 
+    def _rd_wait(self, reraise=True):
+        while self._rd_busy: self._rd_cond.wait()
+        # if the worker thread crashed, close the vidpak file. the close
+        # function will reraise the exception.
+        if reraise and self._rd_exc is not None: self.close()
+
     def close(self):
         """Close the file."""
         if not self._opened: return
         # wait for the worker thread to finish what it's doing, then tell it to
         # stop by restarting it when the file is closed
         with self._rd_cond:
-            while self._rd_busy: self._rd_cond.wait()
+            self._rd_wait(reraise=False)
             self._opened = False
             self._rd_busy = True
             self._rd_cond.notify()
@@ -397,12 +394,8 @@ class VidpakFileWriter:
         extra_size = len(extra)
 
         with self._wr_cond:
-            # wait until the worker thread is done writing the previous data
-            while self._wr_busy: self._wr_cond.wait()
-            # if it crashed, close the vidpak file. the close function will
-            # reraise the exception.
-            if self._wr_exc is not None: self.close()
-            # store the data for it to write this frame
+            self._wr_wait() # wait for any previous write to complete
+            # store the data for the worker to write this frame
             self._wr_chunks = [
                 struct.pack("<QII", timestamp, data_size, extra_size),
                 self._wr_buf_curr[:data_size],
@@ -416,6 +409,12 @@ class VidpakFileWriter:
         self._wr_buf_next, self._wr_buf_curr = \
             self._wr_buf_curr, self._wr_buf_next
         self.frame_count += 1
+
+    def _wr_wait(self, reraise=True):
+        while self._wr_busy: self._wr_cond.wait()
+        # if the worker thread crashed, close the vidpak file. the close
+        # function will reraise the exception.
+        if reraise and self._wr_exc is not None: self.close()
 
     def _wr_thread_fn(self):
         try:
@@ -450,10 +449,7 @@ class VidpakFileWriter:
             raise ValueError("vidpak file is closed")
 
         with self._wr_cond:
-            # wait until the worker thread is done
-            while self._wr_busy: self._wr_cond.wait()
-            if self._wr_exc is not None: self.close()
-            # the file has now been flushed by the worker thread
+            self._wr_wait() # file is flushed by worker thread once it's done
 
     def close(self):
         """Close the file.
@@ -466,7 +462,7 @@ class VidpakFileWriter:
         # wait for the worker thread to finish what it's doing, then tell it to
         # stop by restarting it when the file is closed
         with self._wr_cond:
-            while self._wr_busy: self._wr_cond.wait()
+            self._wr_wait(reraise=False)
             self._opened = False
             self._wr_busy = True
             self._wr_cond.notify()
