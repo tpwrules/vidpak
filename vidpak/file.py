@@ -405,7 +405,7 @@ class VidpakFileWriter:
             # and tell it to get back to work
             self._wr_busy = True
             self._wr_cond.notify()
-        # swap buffers so the next frame won't overwrite the buffer being written
+        # swap buffers so next frame won't overwrite the buffer being written
         self._wr_buf_next, self._wr_buf_curr = \
             self._wr_buf_curr, self._wr_buf_next
         self.frame_count += 1
