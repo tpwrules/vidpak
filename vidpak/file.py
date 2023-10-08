@@ -254,7 +254,7 @@ class VidpakFileReader:
                         self.rd_chunks = None
                     self.rd_busy = False # now we've finished our job
                     self.rd_cond.notify()
-        except Exception as e:
+        except BaseException as e:
             with self.rd_cond:
                 # store the exception for the main thread to re-raise
                 self.rd_exc = e
@@ -422,7 +422,7 @@ class VidpakFileWriter:
                     self.f.flush() # flush the data so other readers can see it
                     self.wr_busy = False # now we've finished our job
                     self.wr_cond.notify()
-        except Exception as e:
+        except BaseException as e:
             with self.wr_cond:
                 # store the exception for the main thread to re-raise
                 self.wr_exc = e
