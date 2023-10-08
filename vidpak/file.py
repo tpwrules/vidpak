@@ -63,17 +63,21 @@ class VidpakFileReader:
         self._opened = False
         # open the file and verify the header
         self._f = f = open(fname, "rb")
-        header = f.read(8)
+        header = f.read(32)
+        if len(header) < 32:
+            raise ValueError("truncated file header")
         if header[:6] != b'Vidpak':
             raise ValueError("not a vidpak file")
-        version = struct.unpack("<H", header[6:])[0]
+        version = struct.unpack("<H", header[6:8])[0]
         if version != 1:
             raise ValueError("unknown file version {}".format(version))
 
         # read in the frame metadata and create the pack context
         width, height, bpp, twidth, theight, metadata_len = \
-            struct.unpack("<IIIIII", f.read(24))
+            struct.unpack("<IIIIII", header[8:])
         self.metadata = f.read(metadata_len)
+        if len(self.metadata) < metadata_len:
+            raise ValueError("truncated file header")
         self.size = (width, height)
         self.bpp = bpp
         self.tsize = (twidth, theight)
