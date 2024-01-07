@@ -6,6 +6,16 @@
 #include "fseU16.h"
 #include "pack.h"
 
+// encode the delta given a pixel and a prediction
+static inline uint16_t delta_encode_12bit(uint16_t pix, uint16_t pred) {
+    return (pix-pred) & 0xFFF; // simple difference modulo 12 bits
+}
+
+// decode the pixel given a delta and a prediction
+static inline uint16_t delta_decode_12bit(uint16_t delta, uint16_t pred) {
+    return (delta+pred) & 0xFFF; // simple difference modulo 12 bits
+}
+
 // create a pack context to pack (or unpack) frames of the specified size, bits
 // per pixel, and tile size. the frame size must be a multiple of the tile size
 // and the tile height must be a multiple of 4! contexts are not thread-safe!
@@ -100,10 +110,10 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
     size_t o = 4;
     // prediction of the first row: the pixel's left neighbor
     for (size_t x=dx; x<dx*width; x+=dx) {
-        diff[o+0] = (src0[x] - src0[x-dx]) & 0xFFF;
-        diff[o+1] = (src1[x] - src1[x-dx]) & 0xFFF;
-        diff[o+2] = (src2[x] - src2[x-dx]) & 0xFFF;
-        diff[o+3] = (src3[x] - src3[x-dx]) & 0xFFF;
+        diff[o+0] = delta_encode_12bit(src0[x], src0[x-dx]);
+        diff[o+1] = delta_encode_12bit(src1[x], src1[x-dx]);
+        diff[o+2] = delta_encode_12bit(src2[x], src2[x-dx]);
+        diff[o+3] = delta_encode_12bit(src3[x], src3[x-dx]);
         o += 4;
     }
     for (size_t y=1; y<sheight; y++) {
@@ -113,10 +123,10 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
         src3 += dy;
 
         // prediction of the first column: the pixel's top neighbor
-        diff[o+0] = (src0[0] - src0[-dy]) & 0xFFF;
-        diff[o+1] = (src1[0] - src1[-dy]) & 0xFFF;
-        diff[o+2] = (src2[0] - src2[-dy]) & 0xFFF;
-        diff[o+3] = (src3[0] - src3[-dy]) & 0xFFF;
+        diff[o+0] = delta_encode_12bit(src0[0], src0[-dy]);
+        diff[o+1] = delta_encode_12bit(src1[0], src1[-dy]);
+        diff[o+2] = delta_encode_12bit(src2[0], src2[-dy]);
+        diff[o+3] = delta_encode_12bit(src3[0], src3[-dy]);
         o += 4;
 
         // prediction of the rest of the pixels: average of left and top
@@ -126,10 +136,10 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
             uint16_t p1 = (src1[x-dx]+src1[x-dy])>>1;
             uint16_t p2 = (src2[x-dx]+src2[x-dy])>>1;
             uint16_t p3 = (src3[x-dx]+src3[x-dy])>>1;
-            diff[o+0] = (src0[x] - p0) & 0xFFF;
-            diff[o+1] = (src1[x] - p1) & 0xFFF;
-            diff[o+2] = (src2[x] - p2) & 0xFFF;
-            diff[o+3] = (src3[x] - p3) & 0xFFF;
+            diff[o+0] = delta_encode_12bit(src0[x], p0);
+            diff[o+1] = delta_encode_12bit(src1[x], p1);
+            diff[o+2] = delta_encode_12bit(src2[x], p2);
+            diff[o+3] = delta_encode_12bit(src3[x], p3);
             o += 4;
         }
     }
@@ -197,10 +207,10 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
     size_t i = 4;
     // prediction of the first row: the pixel's left neighbor
     for (size_t x=dx; x<dx*width; x+=dx) {
-        l0 = (diff[i+0] + l0) & 0xFFF;
-        l1 = (diff[i+1] + l1) & 0xFFF;
-        l2 = (diff[i+2] + l2) & 0xFFF;
-        l3 = (diff[i+3] + l3) & 0xFFF;
+        l0 = delta_decode_12bit(diff[i+0], l0);
+        l1 = delta_decode_12bit(diff[i+1], l1);
+        l2 = delta_decode_12bit(diff[i+2], l2);
+        l3 = delta_decode_12bit(diff[i+3], l3);
         dest0[x] = l0; dest1[x] = l1; dest2[x] = l2; dest3[x] = l3;
         i += 4;
     }
@@ -211,10 +221,10 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
         dest3 += dy;
 
         // prediction of the first column: the pixel's top neighbor
-        l0 = (diff[i+0] + dest0[-dy]) & 0xFFF;
-        l1 = (diff[i+1] + dest1[-dy]) & 0xFFF;
-        l2 = (diff[i+2] + dest2[-dy]) & 0xFFF;
-        l3 = (diff[i+3] + dest3[-dy]) & 0xFFF;
+        l0 = delta_decode_12bit(diff[i+0], dest0[-dy]);
+        l1 = delta_decode_12bit(diff[i+1], dest1[-dy]);
+        l2 = delta_decode_12bit(diff[i+2], dest2[-dy]);
+        l3 = delta_decode_12bit(diff[i+3], dest3[-dy]);
         dest0[0] = l0; dest1[0] = l1; dest2[0] = l2; dest3[0] = l3;
         i += 4;
 
@@ -225,10 +235,10 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
             uint16_t p1 = (l1+dest1[x-dy])>>1;
             uint16_t p2 = (l2+dest2[x-dy])>>1;
             uint16_t p3 = (l3+dest3[x-dy])>>1;
-            l0 = (diff[i+0] + p0) & 0xFFF;
-            l1 = (diff[i+1] + p1) & 0xFFF;
-            l2 = (diff[i+2] + p2) & 0xFFF;
-            l3 = (diff[i+3] + p3) & 0xFFF;
+            l0 = delta_decode_12bit(diff[i+0], p0);
+            l1 = delta_decode_12bit(diff[i+1], p1);
+            l2 = delta_decode_12bit(diff[i+2], p2);
+            l3 = delta_decode_12bit(diff[i+3], p3);
             dest0[x] = l0; dest1[x] = l1; dest2[x] = l2; dest3[x] = l3;
             i += 4;
         }
