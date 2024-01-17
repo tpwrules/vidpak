@@ -96,11 +96,16 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
     // the full four if there's only that number of rows in the image
     size_t slices = (height < 4) ? height : 4;
 
-    // compute the start of each slice
-    const uint16_t* src0 = (slices > 0) ? &src[0*(dy*sheight)] : NULL;
-    const uint16_t* src1 = (slices > 1) ? &src[1*(dy*sheight)] : NULL;
-    const uint16_t* src2 = (slices > 2) ? &src[2*(dy*sheight)] : NULL;
-    const uint16_t* src3 = (slices > 3) ? &src[3*(dy*sheight)] : NULL;
+    // compute the height of each slice and then its start
+    size_t h0 = (sheight-((height&3)<=0 && (height&3)));
+    size_t h1 = (sheight-((height&3)<=1 && (height&3)));
+    size_t h2 = (sheight-((height&3)<=2 && (height&3)));
+    size_t h3 = (sheight-((height&3)<=3 && (height&3)));
+    if ((h0+h1+h2+h3) != height) return 0; // should never happen
+    const uint16_t* src0 = (slices > 0) ? &src[dy*(0)] : NULL;
+    const uint16_t* src1 = (slices > 1) ? &src[dy*(h0)] : NULL;
+    const uint16_t* src2 = (slices > 2) ? &src[dy*(h0+h1)] : NULL;
+    const uint16_t* src3 = (slices > 3) ? &src[dy*(h0+h1+h2)] : NULL;
 
     // store the first pixel as-is
     if (slices > 0) {
@@ -222,11 +227,16 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
         }
     }
 
-    // compute the start of each slice
-    uint16_t* dest0 = (slices > 0) ? &dest[0*(dy*sheight)] : NULL;
-    uint16_t* dest1 = (slices > 1) ? &dest[1*(dy*sheight)] : NULL;
-    uint16_t* dest2 = (slices > 2) ? &dest[2*(dy*sheight)] : NULL;
-    uint16_t* dest3 = (slices > 3) ? &dest[3*(dy*sheight)] : NULL;
+    // compute the height of each slice and then its start
+    size_t h0 = (sheight-((height&3)<=0 && (height&3)));
+    size_t h1 = (sheight-((height&3)<=1 && (height&3)));
+    size_t h2 = (sheight-((height&3)<=2 && (height&3)));
+    size_t h3 = (sheight-((height&3)<=3 && (height&3)));
+    if ((h0+h1+h2+h3) != height) return 0; // should never happen
+    uint16_t* dest0 = (slices > 0) ? &dest[dy*(0)] : NULL;
+    uint16_t* dest1 = (slices > 1) ? &dest[dy*(h0)] : NULL;
+    uint16_t* dest2 = (slices > 2) ? &dest[dy*(h0+h1)] : NULL;
+    uint16_t* dest3 = (slices > 3) ? &dest[dy*(h0+h1+h2)] : NULL;
 
     // recover the first pixel value
     // unlike during compression, we keep the left pixel in a variable instead
