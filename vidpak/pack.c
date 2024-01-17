@@ -4,6 +4,7 @@
 
 #include "fse.h"
 #include "fseU16.h"
+#include "error_public.h" // from FSE
 #include "pack.h"
 
 // encode the delta given a pixel and a prediction
@@ -176,7 +177,8 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
     size_t sb = 2*slices; // bytes of raw data
     size_t ret = FSE_compressU16(dest+sb, bytes-sb,
         diff+slices, pixels-slices, 4095, 0);
-    if (FSE_isError(ret)) { // something went wrong, bail out
+    if (-ret == FSE_error_dstSize_tooSmall) ret = 0; // ran out of space
+    if (FSE_isError(ret)) { // something else went wrong, bail out
         return 0;
     } else if (ret == 0) { // compressed result is bigger than input
         memcpy((void*)dest, (void*)src, bytes); // so just return the input
