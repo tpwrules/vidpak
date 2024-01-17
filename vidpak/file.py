@@ -69,7 +69,7 @@ class VidpakFileReader:
         if header[:6] != b'Vidpak':
             raise ValueError("not a vidpak file")
         version = struct.unpack("<H", header[6:8])[0]
-        if version != 1:
+        if version != 2:
             raise ValueError("unknown file version {}".format(version))
 
         # read in the frame metadata and create the pack context
@@ -349,7 +349,7 @@ class VidpakFileWriter:
 
         # open the file and write the header
         self._f = f = open(fname, "wb")
-        f.write(b'Vidpak\x01\x00') # file version 1
+        f.write(b'Vidpak\x02\x00') # file version 2
         f.write(struct.pack("<IIIIII", # frame metadata
             width, height, bpp, twidth, theight, len(self.metadata)))
         f.write(self.metadata)
