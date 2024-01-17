@@ -69,8 +69,12 @@ class VidpakFileReader:
         if header[:6] != b'Vidpak':
             raise ValueError("not a vidpak file")
         version = struct.unpack("<H", header[6:8])[0]
-        if version != 2:
-            raise ValueError("unknown file version {}".format(version))
+        if version == 1:
+            pass # packed data compatible with version 2
+        elif version == 2:
+            pass # current version
+        else:
+            raise ValueError(f"unknown file version {version}")
 
         # read in the frame metadata and create the pack context
         width, height, bpp, twidth, theight, metadata_len = \
