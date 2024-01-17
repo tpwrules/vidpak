@@ -59,7 +59,7 @@ cdef class PackContext:
         if src_arr.shape[1] != width or src_arr.shape[0] != height:
             raise ValueError("source dimensions don't match context dimensions")
 
-        cdef uint8_t[:] dest_arr
+        cdef uint8_t[::1] dest_arr
         if dest is None:
             arr = array.clone(array.array('B', []), self.max_packed_size, False)
             dest_arr = arr
