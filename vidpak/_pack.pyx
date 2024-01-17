@@ -50,6 +50,10 @@ cdef class PackContext:
         height = int(cctx.height)
 
         cdef const uint16_t[:, :] src_arr = src
+        if (src_arr.strides[0] & 1) or (src_arr.strides[1] & 1):
+            raise ValueError("input strides can't be odd")
+        if (src_arr.strides[0] <= 0) or (src_arr.strides[1] <= 0):
+            raise ValueError("input strides must be positive")
         cdef size_t dx = src_arr.strides[1]//2
         cdef size_t dy = src_arr.strides[0]//2
         if src_arr.shape[1] != width or src_arr.shape[0] != height:
@@ -88,6 +92,10 @@ cdef class PackContext:
 
         if dest is None: dest = np.empty((height, width), dtype=np.uint16)
         cdef uint16_t[:, :] dest_arr = dest
+        if (dest_arr.strides[0] & 1) or (dest_arr.strides[1] & 1):
+            raise ValueError("output strides can't be odd")
+        if (dest_arr.strides[0] <= 0) or (dest_arr.strides[1] <= 0):
+            raise ValueError("output strides must be positive")
         cdef size_t dx = dest_arr.strides[1]//2
         cdef size_t dy = dest_arr.strides[0]//2
         if dest_arr.shape[1] != width or dest_arr.shape[0] != height:
