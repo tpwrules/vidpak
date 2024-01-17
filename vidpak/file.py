@@ -324,8 +324,7 @@ class VidpakFileWriter:
         tsize : (int, int), optional
             Tuple of the width and height of each packed tile. If None (the
             default), the frame size is used. The width and height of the tiles
-            must be a multiple of the width and height of the frame, and the
-            height of the tiles must be a multiple of 4.
+            must be a multiple of the width and height of the frame.
         metadata : bytes-like, optional
             Metadata to write along with the file header. If None (the default),
             0 bytes are written and a 0-length bytes object will be read back.

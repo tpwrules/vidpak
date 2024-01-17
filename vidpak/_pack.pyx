@@ -37,9 +37,6 @@ cdef class PackContext:
             raise ValueError("width {} and height {} must be a multiple of "
                 "tile width {} and height {}".format(
                     width, height, twidth, theight))
-        if theight % 4 != 0:
-            raise ValueError(
-                "tile height {} must be a multiple of 4".format(theight))
         if bpp != 12:
             raise ValueError("BPP {} is not supported".format(bpp))
 

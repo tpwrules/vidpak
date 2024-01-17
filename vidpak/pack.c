@@ -17,13 +17,12 @@ static inline uint16_t delta_decode_12bit(uint16_t delta, uint16_t pred) {
 }
 
 // create a pack context to pack (or unpack) frames of the specified size, bits
-// per pixel, and tile size. the frame size must be a multiple of the tile size
-// and the tile height must be a multiple of 4! contexts are not thread-safe!
+// per pixel, and tile size. the frame size must be a multiple of the tile size!
+// contexts are not thread-safe!
 pack_context_t* pack_create_context(int width, int height, int bpp,
         int twidth, int theight) {
     if ((width <= 0) || (height <= 0) || (bpp <= 0)) return NULL;
     if ((twidth <= 0) || (theight <= 0)) return NULL;
-    if ((theight & 3) != 0) return NULL;
     if ((width % twidth != 0) || (height % theight != 0)) return NULL;
 
     size_t bytes = width * height * ((bpp+7)/8);
@@ -83,164 +82,220 @@ size_t pack_calc_max_packed_size(pack_context_t* ctx) {
 static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
         const uint16_t* src, uint8_t* dest,
         size_t dx, size_t dy) {
+    // not allowed, but we'd like to let the optimizer know that
+    if ((height == 0) || (width == 0)) return 0;
+
     uint16_t* diff = (uint16_t*)diff_;
     size_t pixels = width * height;
     size_t bytes = 2 * pixels;
 
-    // we slice up the image into four equally sized horizontal slices. working
-    // on four at a time allows us to better utilize the CPU
-    size_t sheight = height/4; // height of each slice
+    // we slice up the image into four horizontal slices. working on four at a
+    // time allows us to better utilize the CPU
+    size_t sheight = (height+3)/4; // height of each slice
+    // compute the number of slices we actually create, which will be less than
+    // the full four if there's only that number of rows in the image
+    size_t slices = (height < 4) ? height : 4;
 
     // compute the start of each slice
-    const uint16_t* src0 = &src[0*(dy*sheight)];
-    const uint16_t* src1 = &src[1*(dy*sheight)];
-    const uint16_t* src2 = &src[2*(dy*sheight)];
-    const uint16_t* src3 = &src[3*(dy*sheight)];
+    const uint16_t* src0 = (slices > 0) ? &src[0*(dy*sheight)] : NULL;
+    const uint16_t* src1 = (slices > 1) ? &src[1*(dy*sheight)] : NULL;
+    const uint16_t* src2 = (slices > 2) ? &src[2*(dy*sheight)] : NULL;
+    const uint16_t* src3 = (slices > 3) ? &src[3*(dy*sheight)] : NULL;
 
     // store the first pixel as-is
-    dest[2*0+0] = src0[0] & 0xFF;
-    dest[2*0+1] = src0[0] >> 8;
-    dest[2*1+0] = src1[0] & 0xFF;
-    dest[2*1+1] = src1[0] >> 8;
-    dest[2*2+0] = src2[0] & 0xFF;
-    dest[2*2+1] = src2[0] >> 8;
-    dest[2*3+0] = src3[0] & 0xFF;
-    dest[2*3+1] = src3[0] >> 8;
+    if (slices > 0) {
+        dest[2*0+0] = src0[0] & 0xFF;
+        dest[2*0+1] = src0[0] >> 8;
+    }
+    if (slices > 1) {
+        dest[2*1+0] = src1[0] & 0xFF;
+        dest[2*1+1] = src1[0] >> 8;
+    }
+    if (slices > 2) {
+        dest[2*2+0] = src2[0] & 0xFF;
+        dest[2*2+1] = src2[0] >> 8;
+    }
+    if (slices > 3) {
+        dest[2*3+0] = src3[0] & 0xFF;
+        dest[2*3+1] = src3[0] >> 8;
+    }
 
-    size_t o = 4;
+    size_t o = slices;
     // prediction of the first row: the pixel's left neighbor
     for (size_t x=dx; x<dx*width; x+=dx) {
-        diff[o+0] = delta_encode_12bit(src0[x], src0[x-dx]);
-        diff[o+1] = delta_encode_12bit(src1[x], src1[x-dx]);
-        diff[o+2] = delta_encode_12bit(src2[x], src2[x-dx]);
-        diff[o+3] = delta_encode_12bit(src3[x], src3[x-dx]);
-        o += 4;
+        if (slices > 0) diff[o+0] = delta_encode_12bit(src0[x], src0[x-dx]);
+        if (slices > 1) diff[o+1] = delta_encode_12bit(src1[x], src1[x-dx]);
+        if (slices > 2) diff[o+2] = delta_encode_12bit(src2[x], src2[x-dx]);
+        if (slices > 3) diff[o+3] = delta_encode_12bit(src3[x], src3[x-dx]);
+        o += slices;
     }
+    // process main rows (we know we have all four slices, otherwise this loop
+    // won't start as sheight=0)
     for (size_t y=1; y<sheight; y++) {
-        src0 += dy; // move to next row
-        src1 += dy;
-        src2 += dy;
-        src3 += dy;
+        // determine which slices we are processing this loop
+        int s0 = (y < (sheight-1)) || ((height & 3) > 0) || ((height & 3) == 0);
+        int s1 = (y < (sheight-1)) || ((height & 3) > 1) || ((height & 3) == 0);
+        int s2 = (y < (sheight-1)) || ((height & 3) > 2) || ((height & 3) == 0);
+        int s3 = (y < (sheight-1)) || ((height & 3) > 3) || ((height & 3) == 0);
+        int active = s0+s1+s2+s3;
+        
+        if (s0) src0 += dy; // move to next row
+        if (s1) src1 += dy;
+        if (s2) src2 += dy;
+        if (s3) src3 += dy;
 
         // prediction of the first column: the pixel's top neighbor
-        diff[o+0] = delta_encode_12bit(src0[0], src0[-dy]);
-        diff[o+1] = delta_encode_12bit(src1[0], src1[-dy]);
-        diff[o+2] = delta_encode_12bit(src2[0], src2[-dy]);
-        diff[o+3] = delta_encode_12bit(src3[0], src3[-dy]);
-        o += 4;
+        if (s0) diff[o+0] = delta_encode_12bit(src0[0], src0[-dy]);
+        if (s1) diff[o+1] = delta_encode_12bit(src1[0], src1[-dy]);
+        if (s2) diff[o+2] = delta_encode_12bit(src2[0], src2[-dy]);
+        if (s3) diff[o+3] = delta_encode_12bit(src3[0], src3[-dy]);
+        o += active;
 
         // prediction of the rest of the pixels: average of left and top
         // neighbors
         for (size_t x=dx; x<dx*width; x+=dx) {
-            uint16_t p0 = (src0[x-dx]+src0[x-dy])>>1;
-            uint16_t p1 = (src1[x-dx]+src1[x-dy])>>1;
-            uint16_t p2 = (src2[x-dx]+src2[x-dy])>>1;
-            uint16_t p3 = (src3[x-dx]+src3[x-dy])>>1;
-            diff[o+0] = delta_encode_12bit(src0[x], p0);
-            diff[o+1] = delta_encode_12bit(src1[x], p1);
-            diff[o+2] = delta_encode_12bit(src2[x], p2);
-            diff[o+3] = delta_encode_12bit(src3[x], p3);
-            o += 4;
+            uint16_t p0, p1, p2, p3;
+            if (s0) p0 = (src0[x-dx]+src0[x-dy])>>1;
+            if (s1) p1 = (src1[x-dx]+src1[x-dy])>>1;
+            if (s2) p2 = (src2[x-dx]+src2[x-dy])>>1;
+            if (s3) p3 = (src3[x-dx]+src3[x-dy])>>1;
+            if (s0) diff[o+0] = delta_encode_12bit(src0[x], p0);
+            if (s1) diff[o+1] = delta_encode_12bit(src1[x], p1);
+            if (s2) diff[o+2] = delta_encode_12bit(src2[x], p2);
+            if (s3) diff[o+3] = delta_encode_12bit(src3[x], p3);
+            o += active;
         }
     }
 
     // compress the differences
-    size_t ret = FSE_compressU16(dest+8, bytes-8, diff+4, pixels-4, 4095, 0);
+    size_t sb = 2*slices; // bytes of raw data
+    size_t ret = FSE_compressU16(dest+sb, bytes-sb,
+        diff+slices, pixels-slices, 4095, 0);
     if (FSE_isError(ret)) { // something went wrong, bail out
         return 0;
     } else if (ret == 0) { // compressed result is bigger than input
         memcpy((void*)dest, (void*)src, bytes); // so just return the input
         return bytes;
     } else if (ret == 1) { // all the input values are the same
-        dest[8] = diff[4] & 0xFF; // store that value
-        dest[9] = diff[4] >> 8;
-        return 10;
+        dest[sb] = diff[slices] & 0xFF; // store that value
+        dest[sb+1] = diff[slices] >> 8;
+        return sb+2;
     } else { // 8 bytes of initial pixel of each slice + compressed data
-        return 8+ret;
+        return sb+ret;
     }
 }
 
 static int unpack_12bit_average(size_t width, size_t height, void* diff_,
         const uint8_t* src, size_t src_size, uint16_t* dest,
         size_t dx, size_t dy) {
+    // not allowed, but we'd like to let the optimizer know that
+    if ((height == 0) || (width == 0)) return 0;
+
     uint16_t* diff = (uint16_t*)diff_;
     size_t pixels = width * height;
     size_t bytes = 2 * pixels;
 
+    // we slice up the image into four horizontal slices. working on four at a
+    // time allows us to better utilize the CPU
+    size_t sheight = (height+3)/4; // height of each slice
+    // compute the number of slices we actually create, which will be less than
+    // the full four if there's only that number of rows in the image
+    size_t slices = (height < 4) ? height : 4;
+
     // uncompress the differences
+    size_t sb = 2*slices; // bytes of raw data
     if (src_size == 0) { // invalid pointer was passed in
         return 0;
     } else if (src_size == bytes) { // input is not compressed
         memcpy((void*)dest, (void*)src, bytes);
         return 1;
-    } else if (src_size == 10) { // all the input values were the same
-        uint16_t v = ((uint16_t)src[9] << 8) | src[8]; // get the value
-        for (size_t i=4; i<pixels; i++) { // and fill the buffer with it
+    } else if (src_size == sb+2) { // all the input values were the same
+        uint16_t v = ((uint16_t)src[sb+1] << 8) | src[sb]; // get the value
+        for (size_t i=slices; i<pixels; i++) { // and fill the buffer with it
             diff[i] = v;
         }
     } else { // data is actually compressed
-        size_t ret = FSE_decompressU16(diff+4, pixels-4, src+8, src_size-8);
+        size_t ret = FSE_decompressU16(diff+slices, pixels-slices,
+            src+sb, src_size-sb);
         if (FSE_isError(ret)) {
             return 0;
         }
     }
 
-    // we slice up the image into four equally sized horizontal slices. working
-    // on four at a time allows us to better utilize the CPU
-    size_t sheight = height/4; // height of each slice
-
     // compute the start of each slice
-    uint16_t* dest0 = &dest[0*(dy*sheight)];
-    uint16_t* dest1 = &dest[1*(dy*sheight)];
-    uint16_t* dest2 = &dest[2*(dy*sheight)];
-    uint16_t* dest3 = &dest[3*(dy*sheight)];
+    uint16_t* dest0 = (slices > 0) ? &dest[0*(dy*sheight)] : NULL;
+    uint16_t* dest1 = (slices > 1) ? &dest[1*(dy*sheight)] : NULL;
+    uint16_t* dest2 = (slices > 2) ? &dest[2*(dy*sheight)] : NULL;
+    uint16_t* dest3 = (slices > 3) ? &dest[3*(dy*sheight)] : NULL;
 
     // recover the first pixel value
     // unlike during compression, we keep the left pixel in a variable instead
     // of re-reading it from the array for speed
-    uint16_t l0 = ((uint16_t)src[2*0+1] << 8) | src[2*0+0];
-    uint16_t l1 = ((uint16_t)src[2*1+1] << 8) | src[2*1+0];
-    uint16_t l2 = ((uint16_t)src[2*2+1] << 8) | src[2*2+0];
-    uint16_t l3 = ((uint16_t)src[2*3+1] << 8) | src[2*3+0];
-    dest0[0] = l0; dest1[0] = l1; dest2[0] = l2; dest3[0] = l3;
+    uint16_t l0 = (slices > 0) ? ((uint16_t)src[2*0+1] << 8) | src[2*0+0] : 0;
+    uint16_t l1 = (slices > 1) ? ((uint16_t)src[2*1+1] << 8) | src[2*1+0] : 0;
+    uint16_t l2 = (slices > 2) ? ((uint16_t)src[2*2+1] << 8) | src[2*2+0] : 0;
+    uint16_t l3 = (slices > 3) ? ((uint16_t)src[2*3+1] << 8) | src[2*3+0] : 0;
+    if (slices > 0) dest0[0] = l0;
+    if (slices > 1) dest1[0] = l1;
+    if (slices > 2) dest2[0] = l2;
+    if (slices > 3) dest3[0] = l3;
 
-    size_t i = 4;
+    size_t i = slices;
     // prediction of the first row: the pixel's left neighbor
     for (size_t x=dx; x<dx*width; x+=dx) {
-        l0 = delta_decode_12bit(diff[i+0], l0);
-        l1 = delta_decode_12bit(diff[i+1], l1);
-        l2 = delta_decode_12bit(diff[i+2], l2);
-        l3 = delta_decode_12bit(diff[i+3], l3);
-        dest0[x] = l0; dest1[x] = l1; dest2[x] = l2; dest3[x] = l3;
-        i += 4;
+        if (slices > 0) l0 = delta_decode_12bit(diff[i+0], l0);
+        if (slices > 1) l1 = delta_decode_12bit(diff[i+1], l1);
+        if (slices > 2) l2 = delta_decode_12bit(diff[i+2], l2);
+        if (slices > 3) l3 = delta_decode_12bit(diff[i+3], l3);
+        if (slices > 0) dest0[x] = l0;
+        if (slices > 1) dest1[x] = l1;
+        if (slices > 2) dest2[x] = l2;
+        if (slices > 3) dest3[x] = l3;
+        i += slices;
     }
+    // process main rows (we know we have all four slices, otherwise this loop
+    // won't start as sheight=0)
     for (size_t y=1; y<sheight; y++) {
-        dest0 += dy; // move to next row
-        dest1 += dy;
-        dest2 += dy;
-        dest3 += dy;
+        // determine which slices we are processing this loop
+        int s0 = (y < (sheight-1)) || ((height & 3) > 0) || ((height & 3) == 0);
+        int s1 = (y < (sheight-1)) || ((height & 3) > 1) || ((height & 3) == 0);
+        int s2 = (y < (sheight-1)) || ((height & 3) > 2) || ((height & 3) == 0);
+        int s3 = (y < (sheight-1)) || ((height & 3) > 3) || ((height & 3) == 0);
+        int active = s0+s1+s2+s3;
+
+        if (s0) dest0 += dy; // move to next row
+        if (s1) dest1 += dy;
+        if (s2) dest2 += dy;
+        if (s3) dest3 += dy;
 
         // prediction of the first column: the pixel's top neighbor
-        l0 = delta_decode_12bit(diff[i+0], dest0[-dy]);
-        l1 = delta_decode_12bit(diff[i+1], dest1[-dy]);
-        l2 = delta_decode_12bit(diff[i+2], dest2[-dy]);
-        l3 = delta_decode_12bit(diff[i+3], dest3[-dy]);
-        dest0[0] = l0; dest1[0] = l1; dest2[0] = l2; dest3[0] = l3;
-        i += 4;
+        if (s0) l0 = delta_decode_12bit(diff[i+0], dest0[-dy]);
+        if (s1) l1 = delta_decode_12bit(diff[i+1], dest1[-dy]);
+        if (s2) l2 = delta_decode_12bit(diff[i+2], dest2[-dy]);
+        if (s3) l3 = delta_decode_12bit(diff[i+3], dest3[-dy]);
+        if (s0) dest0[0] = l0;
+        if (s1) dest1[0] = l1;
+        if (s2) dest2[0] = l2;
+        if (s3) dest3[0] = l3;
+        i += active;
 
         // prediction of the rest of the pixels: average of left and top
         // neighbors
         for (size_t x=dx; x<dx*width; x+=dx) {
-            uint16_t p0 = (l0+dest0[x-dy])>>1;
-            uint16_t p1 = (l1+dest1[x-dy])>>1;
-            uint16_t p2 = (l2+dest2[x-dy])>>1;
-            uint16_t p3 = (l3+dest3[x-dy])>>1;
-            l0 = delta_decode_12bit(diff[i+0], p0);
-            l1 = delta_decode_12bit(diff[i+1], p1);
-            l2 = delta_decode_12bit(diff[i+2], p2);
-            l3 = delta_decode_12bit(diff[i+3], p3);
-            dest0[x] = l0; dest1[x] = l1; dest2[x] = l2; dest3[x] = l3;
-            i += 4;
+            uint16_t p0, p1, p2, p3;
+            if (s0) p0 = (l0+dest0[x-dy])>>1;
+            if (s1) p1 = (l1+dest1[x-dy])>>1;
+            if (s2) p2 = (l2+dest2[x-dy])>>1;
+            if (s3) p3 = (l3+dest3[x-dy])>>1;
+            if (s0) l0 = delta_decode_12bit(diff[i+0], p0);
+            if (s1) l1 = delta_decode_12bit(diff[i+1], p1);
+            if (s2) l2 = delta_decode_12bit(diff[i+2], p2);
+            if (s3) l3 = delta_decode_12bit(diff[i+3], p3);
+            if (s0) dest0[x] = l0;
+            if (s1) dest1[x] = l1;
+            if (s2) dest2[x] = l2;
+            if (s3) dest3[x] = l3;
+            i += active;
         }
     }
 
