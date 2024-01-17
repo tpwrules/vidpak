@@ -247,7 +247,9 @@ size_t FSE_compressU16(void* dst, size_t maxDstSize,
     {   FSE_CTable CTable[FSE_CTABLE_SIZE_U32(FSE_MAX_TABLELOG, FSE_MAX_SYMBOL_VALUE)];
         size_t const errorCode = FSE_buildCTableU16 (CTable, norm, maxSymbolValue, tableLog);
         if (FSE_isError(errorCode)) return errorCode;
-        op += FSE_compressU16_usingCTable (op, omax - op, ip, srcSize, CTable);
+        size_t csize = FSE_compressU16_usingCTable (op, omax - op, ip, srcSize, CTable);
+        if (csize == 0) return ERROR(dstSize_tooSmall); // overflow detected
+        op += csize;
     }
 
     /* check compressibility */
