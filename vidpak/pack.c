@@ -181,7 +181,14 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
     if (FSE_isError(ret)) { // something else went wrong, bail out
         return 0;
     } else if (ret == 0) { // compressed result is bigger than input
-        memcpy((void*)dest, (void*)src, bytes); // so just return the input
+        // so just return the input as the result
+        for (size_t y=0; y<dy*height; y+=dy) {
+            for (size_t x=0; x<dx*width; x+=dx) {
+                uint16_t p = src[y+x];
+                *dest++ = p & 0xFF;
+                *dest++ = p >> 8;
+            }
+        }
         return bytes;
     } else if (ret == 1) { // all the input values are the same
         dest[sb] = diff[slices] & 0xFF; // store that value
@@ -214,7 +221,13 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
     if (src_size == 0) { // invalid pointer was passed in
         return 0;
     } else if (src_size == bytes) { // input is not compressed
-        memcpy((void*)dest, (void*)src, bytes);
+        for (size_t y=0; y<dy*height; y+=dy) {
+            for (size_t x=0; x<dx*width; x+=dx) {
+                uint16_t l = *src++;
+                uint16_t h = *src++;
+                dest[y+x] = (h << 8) | l;
+            }
+        }
         return 1;
     } else if (src_size == sb+2) { // all the input values were the same
         uint16_t v = ((uint16_t)src[sb+1] << 8) | src[sb]; // get the value
