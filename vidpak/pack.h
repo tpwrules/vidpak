@@ -15,8 +15,7 @@ typedef struct {
 } pack_context_t;
 
 // create a pack context to pack (or unpack) frames of the specified size, bits
-// per pixel, and tile size. the frame size must be a multiple of the tile size!
-// contexts are not thread-safe!
+// per pixel, and tile size. contexts are not thread-safe!
 pack_context_t* pack_create_context(int width, int height, int bpp,
         int twidth, int theight);
 // destroy a pack context

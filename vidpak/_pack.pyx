@@ -33,10 +33,9 @@ cdef class PackContext:
         if twidth <= 0 or theight <= 0:
             raise ValueError("tile width {} and height {} must be "
                 "positive".format(twidth, theight))
-        if width % twidth != 0 or height % theight != 0:
-            raise ValueError("width {} and height {} must be a multiple of "
-                "tile width {} and height {}".format(
-                    width, height, twidth, theight))
+        if twidth > width or theight > height:
+            raise ValueError(f"tile dimensions {twidth}x{theight} can't exceed "
+                f"frame dimensions {width}x{height}")
         if bpp != 12:
             raise ValueError("BPP {} is not supported".format(bpp))
 

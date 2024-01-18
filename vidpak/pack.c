@@ -7,6 +7,17 @@
 #include "error_public.h" // from FSE
 #include "pack.h"
 
+// https://stackoverflow.com/a/3437484
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+        __typeof__ (b) _b = (b); \
+        _a > _b ? _a : _b; })
+
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+        __typeof__ (b) _b = (b); \
+        _a < _b ? _a : _b; })
+
 // encode the delta given a pixel and a prediction
 static inline uint16_t delta_encode_12bit(uint16_t pix, uint16_t pred) {
     return (pix-pred) & 0xFFF; // simple difference modulo 12 bits
@@ -18,13 +29,12 @@ static inline uint16_t delta_decode_12bit(uint16_t delta, uint16_t pred) {
 }
 
 // create a pack context to pack (or unpack) frames of the specified size, bits
-// per pixel, and tile size. the frame size must be a multiple of the tile size!
-// contexts are not thread-safe!
+// per pixel, and tile size. contexts are not thread-safe!
 pack_context_t* pack_create_context(int width, int height, int bpp,
         int twidth, int theight) {
     if ((width <= 0) || (height <= 0) || (bpp <= 0)) return NULL;
     if ((twidth <= 0) || (theight <= 0)) return NULL;
-    if ((width % twidth != 0) || (height % theight != 0)) return NULL;
+    if ((twidth > width) || (theight > height)) return NULL;
 
     size_t bytes = width * height * ((bpp+7)/8);
     void* diff = malloc(bytes);
@@ -60,11 +70,15 @@ void pack_destroy_context(pack_context_t* ctx) {
 size_t pack_calc_max_packed_size(pack_context_t* ctx) {
     if (!ctx) return 0;
 
-    // the raw pixel data, assuming it could not be compressed
-    size_t bytes = ctx->width * ctx->height * ((ctx->bpp+7)/8);
-    if (ctx->twidth) { // plus the tile size table, if tiled
-        bytes += 4*(ctx->width/ctx->twidth)*(ctx->height/ctx->theight);
-    }
+    size_t width = ctx->width;
+    size_t height = ctx->height;
+    size_t twidth = ctx->twidth;
+    size_t theight = ctx->theight;
+
+    // the raw pixel data, assuming it could not be compressed, plus the tile
+    // size table
+    size_t bytes = (width * height * ((ctx->bpp+7)/8)) +
+        (4*((width+twidth-1)/twidth)*((height+theight-1)/theight));
 
     return bytes;
 }
@@ -347,16 +361,19 @@ size_t pack_with_context(pack_context_t* ctx,
 
     // pack each tile individually. we start with a table of the size of
     // each tile in bytes so we know where each tile's data is
-    size_t dest_pos = 4*(width/twidth)*(height/theight);
+    size_t dest_pos = 4*((width+twidth-1)/twidth)*((height+theight-1)/theight);
     size_t tile = 0;
     for (size_t ty=0; ty<height; ty+=theight) {
         for (size_t tx=0; tx<width; tx+=twidth) {
-            uint32_t size = (uint32_t)pack_12bit_average(twidth, theight, diff,
-                &src[(ty*dy)+(tx*dx)],
-                &dest[dest_pos],
+            uint32_t size = (uint32_t)pack_12bit_average(
+                min(twidth, width-tx), min(theight, height-ty), diff,
+                &src[(ty*dy)+(tx*dx)], &dest[dest_pos],
                 dx, dy);
             if (size == 0) return 0;
-            memcpy(&dest[4*tile], &size, sizeof(uint32_t));
+            dest[4*tile+0] = size & 0xFF;
+            dest[4*tile+1] = (size >> 8) & 0xFF;
+            dest[4*tile+2] = (size >> 16) & 0xFF;
+            dest[4*tile+3] = (size >> 24) & 0xFF;
             dest_pos += size;
             tile++;
         }
@@ -383,17 +400,17 @@ int unpack_with_context(pack_context_t* ctx,
 
     // unpack each tile individually. we start with a table of the size of
     // each tile in bytes so we know where each tile's data is
-    size_t src_pos = 4*(width/twidth)*(height/theight);
+    size_t src_pos = 4*((width+twidth-1)/twidth)*((height+theight-1)/theight);
     if (src_pos > src_size) return 0;
     size_t tile = 0;
     for (size_t ty=0; ty<height; ty+=theight) {
         for (size_t tx=0; tx<width; tx+=twidth) {
-            uint32_t size;
-            memcpy(&size, &src[4*tile], sizeof(uint32_t));
+            uint32_t size = src[4*tile+0] | (src[4*tile+1]<<8)
+                | (src[4*tile+2]<<16) | (src[4*tile+3]<<24);
             if (size > (src_size - src_pos)) return 0;
-            int success = unpack_12bit_average(twidth, theight, diff,
-                &src[src_pos], size,
-                &dest[(ty*dy)+(tx*dx)],
+            int success = unpack_12bit_average(
+                min(twidth, width-tx), min(theight, height-ty), diff,
+                &src[src_pos], size, &dest[(ty*dy)+(tx*dx)],
                 dx, dy);
             if (success != 1) return 0;
             src_pos += size;
