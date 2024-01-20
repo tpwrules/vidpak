@@ -75,6 +75,7 @@ class VidpakFileReader:
             pass # current version
         else:
             raise ValueError(f"unknown file version {version}")
+        self._file_version = version
 
         # read in the frame metadata and create the pack context
         width, height, bpp, twidth, theight, metadata_len = \
@@ -90,7 +91,11 @@ class VidpakFileReader:
         self.file_size = 32 + metadata_len
         self._endless = endless
         self._frame_headers = []
+        self._have_all_headers = False
         self.frame_count = None
+
+        if not self._endless:
+            self._read_footer()
 
         self._rd_index = None
         self._rd_buf_curr = np.empty(
@@ -211,7 +216,7 @@ class VidpakFileReader:
         if len(self._frame_headers) > index:
             return self._frame_headers[index] # we have it already
 
-        if self.frame_count is not None: # we've reached the end of the file
+        if self._have_all_headers: # no point looking harder
             return None
 
         self._f.seek(self.file_size)
@@ -221,6 +226,10 @@ class VidpakFileReader:
                 break
 
             timestamp, data_size, extra_size = struct.unpack("<QII", header)
+            if data_size == 0xFFFFFFFF and extra_size == 0xFFFFFFFF: # file end
+                # writer has ended the file so endless mode is over
+                self._endless = False
+                break
             data_pos = self.file_size + 16
             file_size = data_pos + data_size + extra_size
             self._f.seek(file_size-1) # see if we can read the last byte of data
@@ -236,6 +245,7 @@ class VidpakFileReader:
 
         # the file is over and we did not find the header
         if not self._endless:
+            self._have_all_headers = True # we have read all possible headers
             self.frame_count = len(self._frame_headers)
         return None
 
@@ -292,6 +302,21 @@ class VidpakFileReader:
             rd_exc = self._rd_exc
             self._rd_exc = None
             raise RuntimeError("exception in reader thread") from rd_exc
+
+    def _read_footer(self):
+        if self._file_version == 1: # no footer in version 1 files
+            return
+
+        # validate the footer's footer at the last 16 bytes of the file
+        self._f.seek(-16, 2)
+        footer_info = self._f.read(16)
+        if len(footer_info) != 16: return # incomplete
+        if footer_info[:8] != b"VPFooter": return # invalid
+        self._f.seek(struct.unpack("<Q", footer_info[8:])[0]) # seek to start
+        if self._f.read(8) != b"VPFootSt": return # invalid footer start
+
+        # read the total frame count from the footer
+        self.frame_count = struct.unpack("<I", self._f.read(4))[0]
 
     def __del__(self):
         self.close()
@@ -467,7 +492,7 @@ class VidpakFileWriter:
 
         This must be called before the writer is destroyed and the program exits
         to ensure all the data is fully written to the file. Otherwise, the last
-        frame may be truncated.
+        frame may be truncated and the footer will not be written.
         """
         if not self._opened: return
         # wait for the worker thread to finish what it's doing, then tell it to
@@ -478,11 +503,28 @@ class VidpakFileWriter:
             self._wr_busy = True
             self._wr_cond.notify()
         self._wr_thread.join()
+        if self._wr_exc is None:
+            self._write_footer()
         self._f.close()
         if self._wr_exc is not None:
             wr_exc = self._wr_exc
             self._wr_exc = None
             raise RuntimeError("exception in writer thread") from wr_exc
+
+    def _write_footer(self):
+        # write a frame header with max sizes to signal end to endless readers
+        self._f.write(struct.pack("<QII", 0, 0xFFFFFFFF, 0xFFFFFFFF))
+
+        footer_pos = self._f.tell()
+        # write the footer start magic
+        self._f.write(b"VPFootSt")
+        # write the number of frames in the file
+        self._f.write(struct.pack("<I", self.frame_count))
+        
+        # write the actual footer magic and absolute footer start position.
+        # these must be the last 16 bytes in the file
+        self._f.write(b"VPFooter")
+        self._f.write(struct.pack("<Q", footer_pos))
 
     def __del__(self):
         self.close()
