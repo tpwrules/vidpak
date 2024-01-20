@@ -23,7 +23,7 @@ cdef extern from "pack.h":
 
 cdef class PackContext:
     cdef pack_context_t* ctx
-    cdef readonly size_t max_packed_size
+    cdef readonly ssize_t max_packed_size # signed types to avoid warnings
     cdef readonly ssize_t _ctx_w
     cdef readonly ssize_t _ctx_h
 
@@ -64,7 +64,7 @@ cdef class PackContext:
             arr = array.clone(array.array('B', []), self.max_packed_size, False)
             dest_arr = arr
         else:
-            if len(dest) < int(self.max_packed_size):
+            if len(dest) < self.max_packed_size:
                 raise ValueError("destination buffer is not large enough")
             dest_arr = dest
 
