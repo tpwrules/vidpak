@@ -180,7 +180,8 @@ class VidpakFileReader:
         """Count and return the total number of frames in the file.
 
         This operation may require considerable time as the reader has to seek
-        through the entire file to read every frame header.
+        through the entire file to read every frame header (unless a valid
+        footer was found).
 
         If max_counted is None, every remaining frame is counted. If not, at
         most max_counted frames will be counted. If there are still frames to be
@@ -190,9 +191,9 @@ class VidpakFileReader:
         In endless mode, at least the number of frames returned can be read.
         More frames may become available as the writer continues writing.
         """
-        if max_counted is not None and max_counted <= 0:
+        if max_counted is not None and max_counted < 0:
             raise ValueError(
-                "max counted {} must be positive".format(max_counted))
+                f"max_counted must be non-negative, not {max_counted}")
 
         if self.frame_count is not None and not self._endless:
             return self.frame_count
@@ -205,8 +206,8 @@ class VidpakFileReader:
             while self.frame_count is None:
                 # try to find an arbitrary future frame
                 self._read_frame_header(len(self._frame_headers)+1000)
-        else:
-            self._read_frame_header(len(self._frame_headers)+max_counted)
+        elif max_counted > 0:
+            self._read_frame_header(len(self._frame_headers)+max_counted-1)
 
         return self.frame_count
 
