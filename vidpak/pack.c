@@ -36,7 +36,8 @@ pack_context_t* pack_create_context(int width, int height, int bpp,
     if ((twidth <= 0) || (theight <= 0)) return NULL;
     if ((twidth > width) || (theight > height)) return NULL;
 
-    size_t bytes = width * height * ((bpp+7)/8);
+    // diff buffer holds difference of one tile while it's processed
+    size_t bytes = twidth * theight * ((bpp+7)/8);
     void* diff = malloc(bytes);
     if (!diff) {
         return NULL;
