@@ -22,7 +22,7 @@ cdef extern from "pack.h":
             size_t dx, size_t dy) nogil
 
 cdef class PackContext:
-    cdef pack_context_t* ctx
+    cdef pack_context_t* _ctx
     cdef readonly ssize_t max_packed_size # signed types to avoid warnings
     cdef readonly ssize_t _ctx_w
     cdef readonly ssize_t _ctx_h
@@ -40,15 +40,13 @@ cdef class PackContext:
         if bpp != 12:
             raise ValueError("BPP {} is not supported".format(bpp))
 
-        self.ctx = pack_create_context(width, height, bpp, twidth, theight)
-        if not self.ctx: raise MemoryError("failed to create pack context")
-        self.max_packed_size = pack_calc_max_packed_size(self.ctx)
+        self._ctx = pack_create_context(width, height, bpp, twidth, theight)
+        if not self._ctx: raise MemoryError("failed to create pack context")
+        self.max_packed_size = pack_calc_max_packed_size(self._ctx)
         self._ctx_w = width
         self._ctx_h = height
 
     def pack(self, src, dest=None):
-        cdef pack_context_t* cctx = self.ctx
-
         cdef const uint16_t[:, :] src_arr = src
         if (src_arr.strides[0] & 1) or (src_arr.strides[1] & 1):
             raise ValueError("input strides can't be odd")
@@ -71,7 +69,7 @@ cdef class PackContext:
         cdef const uint16_t* src_ptr = &src_arr[0, 0]
         cdef uint8_t* dest_ptr = &dest_arr[0]
         with nogil:
-            compressed_size = pack_with_context(cctx,
+            compressed_size = pack_with_context(self._ctx,
                 src_ptr, dest_ptr, dx, dy)
         if compressed_size == 0: raise Exception("compression failed")
 
@@ -82,8 +80,6 @@ cdef class PackContext:
             return dest, compressed_size
 
     def unpack(self, src, dest=None):
-        cdef pack_context_t* cctx = self.ctx
-
         cdef const uint8_t[::1] src_arr = src
 
         if dest is None:
@@ -102,11 +98,11 @@ cdef class PackContext:
         cdef uint16_t* dest_ptr = &dest_arr[0, 0]
         cdef size_t src_len = len(src_arr)
         with nogil:
-            success = unpack_with_context(cctx,
+            success = unpack_with_context(self._ctx,
                 src_ptr, src_len, dest_ptr, dx, dy)
         if success != 1: raise Exception("decompression failed")
 
         return dest
 
     def __dealloc__(self):
-        pack_destroy_context(self.ctx)
+        pack_destroy_context(self._ctx)
