@@ -7,6 +7,17 @@
 #include "error_public.h" // from FSE
 #include "pack.h"
 
+// temporary data used during pack and unpack operations. contexts are not
+// thread-safe!
+struct pack_context_t {
+    size_t width; // width and height of the packed frame, in pixels
+    size_t height;
+    size_t bpp; // bits per pixel
+    size_t twidth; // width and height of one tile
+    size_t theight;
+    void* diff; // buffer to store difference between pixels
+};
+
 // https://stackoverflow.com/a/3437484
 #define max(a,b) \
     ({ __typeof__ (a) _a = (a); \

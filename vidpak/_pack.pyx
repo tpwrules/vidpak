@@ -7,8 +7,7 @@ import numpy as np
 
 cdef extern from "pack.h":
     ctypedef struct pack_context_t:
-        size_t width
-        size_t height
+        pass
 
     pack_context_t* pack_create_context(int width, int height, int bpp,
             int twidth, int theight)
@@ -25,6 +24,8 @@ cdef extern from "pack.h":
 cdef class PackContext:
     cdef pack_context_t* ctx
     cdef readonly size_t max_packed_size
+    cdef readonly ssize_t _ctx_w
+    cdef readonly ssize_t _ctx_h
 
     def __cinit__(self, int width, int height, int bpp, int twidth, int theight):
         if width <= 0 or height <= 0:
@@ -42,11 +43,11 @@ cdef class PackContext:
         self.ctx = pack_create_context(width, height, bpp, twidth, theight)
         if not self.ctx: raise MemoryError("failed to create pack context")
         self.max_packed_size = pack_calc_max_packed_size(self.ctx)
+        self._ctx_w = width
+        self._ctx_h = height
 
     def pack(self, src, dest=None):
         cdef pack_context_t* cctx = self.ctx
-        width = int(cctx.width)
-        height = int(cctx.height)
 
         cdef const uint16_t[:, :] src_arr = src
         if (src_arr.strides[0] & 1) or (src_arr.strides[1] & 1):
@@ -55,7 +56,7 @@ cdef class PackContext:
             raise ValueError("input strides must be positive")
         cdef size_t dx = src_arr.strides[1]//2
         cdef size_t dy = src_arr.strides[0]//2
-        if src_arr.shape[1] != width or src_arr.shape[0] != height:
+        if src_arr.shape[1] != self._ctx_w or src_arr.shape[0] != self._ctx_h:
             raise ValueError("source dimensions don't match context dimensions")
 
         cdef uint8_t[::1] dest_arr
@@ -82,12 +83,11 @@ cdef class PackContext:
 
     def unpack(self, src, dest=None):
         cdef pack_context_t* cctx = self.ctx
-        width = int(cctx.width)
-        height = int(cctx.height)
 
         cdef const uint8_t[::1] src_arr = src
 
-        if dest is None: dest = np.empty((height, width), dtype=np.uint16)
+        if dest is None:
+            dest = np.empty((self._ctx_h, self._ctx_w), dtype=np.uint16)
         cdef uint16_t[:, :] dest_arr = dest
         if (dest_arr.strides[0] & 1) or (dest_arr.strides[1] & 1):
             raise ValueError("output strides can't be odd")
@@ -95,7 +95,7 @@ cdef class PackContext:
             raise ValueError("output strides must be positive")
         cdef size_t dx = dest_arr.strides[1]//2
         cdef size_t dy = dest_arr.strides[0]//2
-        if dest_arr.shape[1] != width or dest_arr.shape[0] != height:
+        if dest_arr.shape[1] != self._ctx_w or dest_arr.shape[0] != self._ctx_h:
             raise ValueError("dest dimensions don't match context dimensions")
 
         cdef const uint8_t* src_ptr = &src_arr[0]

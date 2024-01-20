@@ -5,14 +5,7 @@
 
 // temporary data used during pack and unpack operations. contexts are not
 // thread-safe!
-typedef struct {
-    size_t width; // width and height of the packed frame, in pixels
-    size_t height;
-    size_t bpp; // bits per pixel
-    size_t twidth; // width and height of one tile
-    size_t theight;
-    void* diff; // buffer to store difference between pixels
-} pack_context_t;
+typedef struct pack_context_t pack_context_t;
 
 // create a pack context to pack (or unpack) frames of the specified size, bits
 // per pixel, and tile size. contexts are not thread-safe!
