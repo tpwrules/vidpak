@@ -119,10 +119,11 @@ class VidpakFileReader:
         frame_out : numpy array, optional
             The array to unpack the frame into. If None (the default), a new
             array is created and returned. Otherwise the same array is returned.
-        prefetch : bool, optional
+        prefetch : bool or int, default=True
             If True (the default), prefetch the frame at index+1 so that it is
             loaded from disk and ready for unpacking when read_frame(index+1) is
-            called.
+            called. If an int, prefetch that frame as described instead of
+            index+1.
 
         Returns
         -------
@@ -137,6 +138,12 @@ class VidpakFileReader:
         index = int(index)
         if index < 0:
             raise ValueError("frame index must be non-negative")
+        if not isinstance(prefetch, bool):
+            prefetch = int(prefetch)
+            if prefetch < 0:
+                raise ValueError("prefetch index must be non-negative")
+        elif prefetch is True:
+            prefetch = index+1
 
         if self._rd_index != index: # are we reading the requested frame?
             with self._rd_cond: # nope, so start reading what the caller wants
@@ -150,8 +157,9 @@ class VidpakFileReader:
             self._rd_wait() # wait for the desired read to complete
             rd_chunks = self._rd_chunks # get the read data
             self._rd_chunks = None
-            if prefetch: # if requested, start the worker reading the next frame
-                self._rd_index = index + 1
+            # if requested, start the worker reading the desired frame
+            if prefetch is not False:
+                self._rd_index = prefetch
                 self._rd_busy = True
                 self._rd_cond.notify()
 
