@@ -88,9 +88,13 @@ class VidpakFileReader:
         self.tsize = (twidth, theight)
         self._ctx = _pack.PackContext(width, height, bpp, twidth, theight)
 
+        # the file size and last index just count the frames that have been
+        # accessed and verified to exist
         self.file_size = 32 + metadata_len
+        self._last_header_index = -1 # index of the last header of the file
+
         self._endless = endless
-        self._frame_headers = []
+        self._frame_headers = {}
         self._have_all_headers = False
         self.frame_count = None
 
@@ -214,35 +218,45 @@ class VidpakFileReader:
     def _read_frame_header(self, index):
         # read frame headers until the frame index `index` is found (or the file
         # ends). returns the header if it's found or None if not.
-        if len(self._frame_headers) > index:
-            return self._frame_headers[index] # we have it already
+        try:
+            return self._frame_headers[index] # we might have it already
+        except KeyError:
+            if self._have_all_headers: # no point looking harder
+                return None
 
-        if self._have_all_headers: # no point looking harder
-            return None
+        def get(index, pos):
+            # read, store, and return the index'th header at the given file pos.
+            # returns None if unsuccessful
+            self._f.seek(pos)
 
-        self._f.seek(self.file_size)
-        while len(self._frame_headers) <= index:
             header = self._f.read(16)
             if len(header) < 16: # header is incomplete; no more frames
-                break
+                return None
 
             timestamp, data_size, extra_size = struct.unpack("<QII", header)
             if data_size == 0xFFFFFFFF and extra_size == 0xFFFFFFFF: # file end
                 # writer has ended the file so endless mode is over
                 self._endless = False
-                break
-            data_pos = self.file_size + 16
+                return None
+            data_pos = pos + 16
             file_size = data_pos + data_size + extra_size
             self._f.seek(file_size-1) # see if we can read the last byte of data
             if self._f.read(1) == b'':
                 # we can't; this frame isn't complete and there are no more
-                break
-            self.file_size = file_size
+                return None
+            # update the end of the file
+            self.file_size = max(file_size, self.file_size)
+            self._last_header_index = max(index, self._last_header_index)
 
-            self._frame_headers.append(
-                FrameHeader(timestamp, data_size, extra_size, data_pos))
-        else: # the loop did not break which means we found the requested header
-            return self._frame_headers[index]
+            header = FrameHeader(timestamp, data_size, extra_size, data_pos)
+            self._frame_headers[index] = header
+
+            return header
+
+        # read more headers starting at the end of the file
+        while (header := get(self._last_header_index+1, self.file_size)):
+            if self._last_header_index == index:
+                return header
 
         # the file is over and we did not find the header
         if not self._endless:
@@ -315,6 +329,8 @@ class VidpakFileReader:
         if footer_info[:8] != b"VPFooter": return # invalid
         self._f.seek(struct.unpack("<Q", footer_info[8:])[0]) # seek to start
         if self._f.read(8) != b"VPFootSt": return # invalid footer start
+        # we can't update the file size as that's used to control reading of 
+        # frame headers
 
         # read the total frame count from the footer
         self.frame_count = struct.unpack("<I", self._f.read(4))[0]
