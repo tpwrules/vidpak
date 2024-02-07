@@ -172,6 +172,8 @@ class VidpakFileReader:
                 self._rd_index = prefetch
                 self._rd_busy = True
                 self._rd_cond.notify()
+            else:
+                self._rd_index = None # no prefetch in progress
 
         if rd_chunks is None:
             raise IndexError("frame {} does not exist".format(index))
