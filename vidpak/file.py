@@ -93,6 +93,7 @@ class VidpakFileReader:
         self.file_size = 32 + metadata_len
         self._last_header_index = -1 # index of the last header of the file
 
+        self._frame_pos = None # if read from footer
         self._endless = endless
         self._frame_headers = {}
         self._have_all_headers = False
@@ -253,10 +254,16 @@ class VidpakFileReader:
 
             return header
 
-        # read more headers starting at the end of the file
-        while (header := get(self._last_header_index+1, self.file_size)):
-            if self._last_header_index == index:
-                return header
+        if self._frame_pos is None: # if we don't already know the position
+            # read more headers starting at the end of the file
+            while (header := get(self._last_header_index+1, self.file_size)):
+                if self._last_header_index == index:
+                    return header
+        else: # just read where we know it to be
+            try:
+                return get(index, int(self._frame_pos[index]))
+            except IndexError:
+                return None
 
         # the file is over and we did not find the header
         if not self._endless:
@@ -335,6 +342,12 @@ class VidpakFileReader:
         # read the total frame count from the footer
         self.frame_count = struct.unpack("<I", self._f.read(4))[0]
 
+        # read frame position table if it exists
+        have_frame_pos = self._f.read(1)[0] != 0
+        if have_frame_pos:
+            self._frame_pos = \
+                np.frombuffer(self._f.read(8*self.frame_count), dtype=np.uint64)
+
     def __del__(self):
         self.close()
 
@@ -409,6 +422,7 @@ class VidpakFileWriter:
         f.flush() # ensure header is on disk for any readers
         self.file_size = 32 + len(self.metadata)
         self.frame_count = 0
+        self._frame_pos = []
 
         self._wr_buf_curr = np.empty(
             (self._ctx.max_packed_size,), dtype=np.uint8)
@@ -448,6 +462,8 @@ class VidpakFileWriter:
 
         with self._wr_cond:
             self._wr_wait() # wait for any previous write to complete
+            # store the byte position of this frame as the start of the header
+            self._frame_pos.append(self.file_size)
             # store the data for the worker to write this frame
             self._wr_chunks = [
                 struct.pack("<QII", timestamp, data_size, extra_size),
@@ -504,12 +520,18 @@ class VidpakFileWriter:
         with self._wr_cond:
             self._wr_wait() # file is flushed by worker thread once it's done
 
-    def close(self):
+    def close(self, write_frame_pos=True):
         """Close the file.
 
         This must be called before the writer is destroyed and the program exits
         to ensure all the data is fully written to the file. Otherwise, the last
         frame may be truncated and the footer will not be written.
+
+        Parameters
+        ----------
+        write_frame_pos : bool
+            If True (default), write a table of the byte positions of each frame
+            for fast seeking to arbitrary frames.
         """
         if not self._opened: return
         # wait for the worker thread to finish what it's doing, then tell it to
@@ -521,14 +543,14 @@ class VidpakFileWriter:
             self._wr_cond.notify()
         self._wr_thread.join()
         if self._wr_exc is None:
-            self._write_footer()
+            self._write_footer(write_frame_pos=write_frame_pos)
         self._f.close()
         if self._wr_exc is not None:
             wr_exc = self._wr_exc
             self._wr_exc = None
             raise RuntimeError("exception in writer thread") from wr_exc
 
-    def _write_footer(self):
+    def _write_footer(self, write_frame_pos):
         # write a frame header with max sizes to signal end to endless readers
         self._f.write(struct.pack("<QII", 0, 0xFFFFFFFF, 0xFFFFFFFF))
 
@@ -537,6 +559,12 @@ class VidpakFileWriter:
         self._f.write(b"VPFootSt")
         # write the number of frames in the file
         self._f.write(struct.pack("<I", self.frame_count))
+
+        # write the frame positions, if asked
+        write_frame_pos = int(bool(write_frame_pos))
+        self._f.write(struct.pack("<b", write_frame_pos))
+        if write_frame_pos:
+            self._f.write(np.asarray(self._frame_pos, dtype=np.uint64))
         
         # write the actual footer magic and absolute footer start position.
         # these must be the last 16 bytes in the file

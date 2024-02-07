@@ -23,6 +23,8 @@ def main_pack():
         help="Only pack the first n frames.")
     parser.add_argument('-f', '--framerate', type=float, default=30,
         help="Nominal framerate used for determining frame timestamps.")
+    parser.add_argument('--no-frame-pos', action="store_true",
+        help="Don't write frame position table.")
 
     args = parser.parse_args()
 
@@ -75,7 +77,7 @@ def main_pack():
         print("  Packed {} frames...".format(num_frames), end="\r")
         if args.num_frames is not None and num_frames == args.num_frames: break
 
-    writer.close()
+    writer.close(write_frame_pos=not args.no_frame_pos)
 
     print("Finished packing {} frames".format(num_frames))
     if num_frames > 0:
