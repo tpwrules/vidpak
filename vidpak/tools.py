@@ -84,7 +84,6 @@ def main_pack():
 
     num_frames = 0
     pack_time = 0
-    frame_time = 0
     read_thread = threading.Thread(target=read_thread_fn, daemon=True)
     read_thread.start()
     verify_thread = threading.Thread(target=verify_thread_fn, daemon=True)
@@ -95,12 +94,11 @@ def main_pack():
 
         # time how long packing the frame takes
         s = time.perf_counter()
-        writer.write_frame(int(frame_time*1e6), frame)
+        writer.write_frame(int((num_frames/args.framerate)*1e6), frame)
         e = time.perf_counter()
 
         verify_frames.put(frame)
         pack_time += (e-s)
-        frame_time += (1/args.framerate)
         num_frames += 1
 
         print("  Packed {} frames...".format(num_frames), end="\r")
