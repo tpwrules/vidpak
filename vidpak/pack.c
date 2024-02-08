@@ -137,19 +137,19 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
     // store the first pixel as-is
     if (slices > 0) {
         dest[2*0+0] = src0[0] & 0xFF;
-        dest[2*0+1] = src0[0] >> 8;
+        dest[2*0+1] = (src0[0] >> 8) & 0x0F;
     }
     if (slices > 1) {
         dest[2*1+0] = src1[0] & 0xFF;
-        dest[2*1+1] = src1[0] >> 8;
+        dest[2*1+1] = (src1[0] >> 8) & 0x0F;
     }
     if (slices > 2) {
         dest[2*2+0] = src2[0] & 0xFF;
-        dest[2*2+1] = src2[0] >> 8;
+        dest[2*2+1] = (src2[0] >> 8) & 0x0F;
     }
     if (slices > 3) {
         dest[2*3+0] = src3[0] & 0xFF;
-        dest[2*3+1] = src3[0] >> 8;
+        dest[2*3+1] = (src3[0] >> 8) & 0x0F;
     }
 
     size_t o = slices;
@@ -212,7 +212,7 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
             for (size_t x=0; x<dx*width; x+=dx) {
                 uint16_t p = src[y+x];
                 *dest++ = p & 0xFF;
-                *dest++ = p >> 8;
+                *dest++ = (p >> 8) & 0x0F;
             }
         }
         return bytes;
