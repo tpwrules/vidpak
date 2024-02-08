@@ -36,6 +36,15 @@ def main_pack():
     else:
         tile_size = size
 
+    if len(size) != 2:
+        raise ValueError(f"size {size} must be exactly 2 dimensions")
+    if len(tile_size) != 2:
+        raise ValueError(f"tile size {tile_size} must be exactly 2 dimensions")
+    if args.framerate <= 0:
+        raise ValueError(f"framerate {args.framerate} must be positive")
+    if args.num_frames is not None and args.num_frames <= 0:
+        raise ValueError(f"number of frames {args.num_frames} must be positive")
+
     if args.input == "-":
         fin = sys.stdin.buffer
     else:
@@ -131,6 +140,9 @@ def main_unpack():
         help="Only unpack the first n frames.")
 
     args = parser.parse_args()
+
+    if args.num_frames is not None and args.num_frames <= 0:
+        raise ValueError(f"number of frames {args.num_frames} must be positive")
 
     reader = VidpakFileReader(args.input)
     if args.output == "-":
