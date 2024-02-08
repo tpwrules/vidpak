@@ -6,9 +6,9 @@ import threading
 import queue
 import numpy as np
 
-def main_pack():
-    from vidpak import VidpakFileWriter
+from vidpak import VidpakFileReader, VidpakFileWriter
 
+def main_pack():
     parser = argparse.ArgumentParser(
         description="Pack raw video data into a Vidpak file.")
     parser.add_argument('input', type=str,
@@ -25,6 +25,8 @@ def main_pack():
         help="Nominal framerate used for determining frame timestamps.")
     parser.add_argument('--no-frame-pos', action="store_true",
         help="Don't write frame position table.")
+    parser.add_argument('--verify', action="store_true",
+        help="Unpack each frame and verify it matches the original.")
 
     args = parser.parse_args()
 
@@ -40,8 +42,13 @@ def main_pack():
         fin = open(args.input, "rb")
     # for now we can only deal with 12bpp files
     writer = VidpakFileWriter(args.output, size, 12, tile_size)
+    if args.verify:
+        reader = VidpakFileReader(args.output, endless=True)
+    else:
+        reader = None
 
     empty_frames, full_frames = queue.Queue(), queue.Queue()
+    verify_frames = queue.Queue()
     for _ in range(4):
         empty_frames.put(np.empty((size[1], size[0]), dtype=np.uint16))
     frame_size = size[0]*size[1]*2
@@ -55,11 +62,33 @@ def main_pack():
         fin.close()
         full_frames.put(None)
 
+    verify_result = True
+    def verify_thread_fn():
+        nonlocal verify_result
+        got_frame = np.empty((size[1], size[0]), dtype=np.uint16)
+        index = 0
+        while True:
+            frame = verify_frames.get()
+            if frame is None: break # no more frames
+            if reader is not None and verify_result is True:
+                while True:
+                    try:
+                        reader.read_frame(index, frame_out=got_frame)
+                        break
+                    except IndexError: # frame is not ready yet
+                        pass
+                if not np.array_equal(frame, got_frame):
+                    verify_result = False
+                index += 1
+            empty_frames.put(frame)
+
     num_frames = 0
     pack_time = 0
     frame_time = 0
     read_thread = threading.Thread(target=read_thread_fn, daemon=True)
     read_thread.start()
+    verify_thread = threading.Thread(target=verify_thread_fn, daemon=True)
+    verify_thread.start()
     while True:
         frame = full_frames.get()
         if frame is None: break
@@ -69,7 +98,7 @@ def main_pack():
         writer.write_frame(int(frame_time*1e6), frame)
         e = time.perf_counter()
 
-        empty_frames.put(frame)
+        verify_frames.put(frame)
         pack_time += (e-s)
         frame_time += (1/args.framerate)
         num_frames += 1
@@ -78,18 +107,24 @@ def main_pack():
         if args.num_frames is not None and num_frames == args.num_frames: break
 
     writer.close(write_frame_pos=not args.no_frame_pos)
+    verify_frames.put(None) # stop verification
+    verify_thread.join() # wait for it to finish
+    if reader is not None:
+        reader.close()
 
     print("Finished packing {} frames".format(num_frames))
     if num_frames > 0:
         print("Average pack time: {:.2f}ms".format(pack_time/num_frames*1000))
         print("Compression ratio: {:.2f}%".format(
             writer.file_size/(frame_size*num_frames)*100))
+        if args.verify:
+            print("Verify result:", ("success" if verify_result else "FAILURE"))
+            if not verify_result:
+                exit(1)
 
 def main_unpack():
-    from vidpak import VidpakFileReader
-
     parser = argparse.ArgumentParser(
-        description="Unpak raw video data from a Vidpak file.")
+        description="Unpack raw video data from a Vidpak file.")
     parser.add_argument('input', type=str,
         help="Path to Vidpak input file.")
     parser.add_argument('output', type=str,
