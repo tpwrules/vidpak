@@ -1,6 +1,6 @@
 profiles/
 __pycache__
-result
+result*
 *.so
 build/
 *.egg-info/
