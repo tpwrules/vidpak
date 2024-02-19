@@ -22,7 +22,7 @@ extensions = [
 
 setup(
     name="vidpak",
-    version="0.3.3",
+    version="0.4.0",
     install_requires=["Cython", "numpy"],
     packages=["vidpak"],
     ext_modules=cythonize(extensions,
