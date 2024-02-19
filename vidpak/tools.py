@@ -1,4 +1,5 @@
 import sys
+import os
 import time
 import pathlib
 import argparse
@@ -27,6 +28,8 @@ def main_pack():
         help="Don't write frame position table.")
     parser.add_argument('--verify', action="store_true",
         help="Unpack each frame and verify it matches the original.")
+    parser.add_argument('--mem', action="store_true",
+        help="Pack only into memory (for e.g. benchmarking). (Linux only!)")
 
     args = parser.parse_args()
 
@@ -49,10 +52,16 @@ def main_pack():
         fin = sys.stdin.buffer
     else:
         fin = open(args.input, "rb")
+    if args.mem:
+        memfd = os.memfd_create(args.input) # name does not matter
+        dest_path = f"/proc/self/fd/{memfd}"
+    else:
+        memfd = None
+        dest_path = args.output
     # for now we can only deal with 12bpp files
-    writer = VidpakFileWriter(args.output, size, 12, tile_size)
+    writer = VidpakFileWriter(dest_path, size, 12, tile_size)
     if args.verify:
-        reader = VidpakFileReader(args.output, endless=True)
+        reader = VidpakFileReader(dest_path, endless=True)
     else:
         reader = None
 
@@ -116,8 +125,8 @@ def main_pack():
     writer.close(write_frame_pos=not args.no_frame_pos)
     verify_frames.put(None) # stop verification
     verify_thread.join() # wait for it to finish
-    if reader is not None:
-        reader.close()
+    if reader is not None: reader.close()
+    if memfd is not None: os.close(memfd)
 
     print("Finished packing {} frames".format(num_frames))
     if num_frames > 0:
