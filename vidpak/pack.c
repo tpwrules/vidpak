@@ -108,7 +108,7 @@ size_t pack_calc_max_packed_size(pack_context_t* ctx) {
 // to be the average of the pixels to the left and top.
 static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
         const uint16_t* src, uint8_t* dest,
-        size_t dx, size_t dy) {
+        ssize_t dx, ssize_t dy) {
     // not allowed, but we'd like to let the optimizer know that
     if ((height == 0) || (width == 0)) return 0;
 
@@ -154,7 +154,7 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
 
     size_t o = slices;
     // prediction of the first row: the pixel's left neighbor
-    for (size_t x=dx; x<dx*width; x+=dx) {
+    for (ssize_t x=dx; x!=dx*(ssize_t)width; x+=dx) {
         if (slices > 0) diff[o+0] = delta_encode_12bit(src0[x], src0[x-dx]);
         if (slices > 1) diff[o+1] = delta_encode_12bit(src1[x], src1[x-dx]);
         if (slices > 2) diff[o+2] = delta_encode_12bit(src2[x], src2[x-dx]);
@@ -185,7 +185,7 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
 
         // prediction of the rest of the pixels: average of left and top
         // neighbors
-        for (size_t x=dx; x<dx*width; x+=dx) {
+        for (ssize_t x=dx; x!=dx*(ssize_t)width; x+=dx) {
             uint16_t p0, p1, p2, p3;
             if (s0) p0 = (src0[x-dx]+src0[x-dy])>>1;
             if (s1) p1 = (src1[x-dx]+src1[x-dy])>>1;
@@ -208,8 +208,8 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
         return 0;
     } else if (ret == 0) { // compressed result is bigger than input
         // so just return the input as the result
-        for (size_t y=0; y<dy*height; y+=dy) {
-            for (size_t x=0; x<dx*width; x+=dx) {
+        for (ssize_t y=0; y!=dy*(ssize_t)height; y+=dy) {
+            for (ssize_t x=0; x!=dx*(ssize_t)width; x+=dx) {
                 uint16_t p = src[y+x];
                 *dest++ = p & 0xFF;
                 *dest++ = (p >> 8) & 0x0F;
@@ -227,7 +227,7 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
 
 static int unpack_12bit_average(size_t width, size_t height, void* diff_,
         const uint8_t* src, size_t src_size, uint16_t* dest,
-        size_t dx, size_t dy) {
+        ssize_t dx, ssize_t dy) {
     // not allowed, but we'd like to let the optimizer know that
     if ((height == 0) || (width == 0)) return 0;
 
@@ -247,8 +247,8 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
     if (src_size == 0) { // invalid pointer was passed in
         return 0;
     } else if (src_size == bytes) { // input is not compressed
-        for (size_t y=0; y<dy*height; y+=dy) {
-            for (size_t x=0; x<dx*width; x+=dx) {
+        for (ssize_t y=0; y!=dy*(ssize_t)height; y+=dy) {
+            for (ssize_t x=0; x!=dx*(ssize_t)width; x+=dx) {
                 uint16_t l = *src++;
                 uint16_t h = *src++;
                 dest[y+x] = (h << 8) | l;
@@ -293,7 +293,7 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
 
     size_t i = slices;
     // prediction of the first row: the pixel's left neighbor
-    for (size_t x=dx; x<dx*width; x+=dx) {
+    for (ssize_t x=dx; x!=dx*(ssize_t)width; x+=dx) {
         if (slices > 0) l0 = delta_decode_12bit(diff[i+0], l0);
         if (slices > 1) l1 = delta_decode_12bit(diff[i+1], l1);
         if (slices > 2) l2 = delta_decode_12bit(diff[i+2], l2);
@@ -332,7 +332,7 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
 
         // prediction of the rest of the pixels: average of left and top
         // neighbors
-        for (size_t x=dx; x<dx*width; x+=dx) {
+        for (ssize_t x=dx; x!=dx*(ssize_t)width; x+=dx) {
             uint16_t p0, p1, p2, p3;
             if (s0) p0 = (l0+dest0[x-dy])>>1;
             if (s1) p1 = (l1+dest1[x-dy])>>1;
@@ -360,7 +360,7 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
 // to pack the whole input array, dx=1 and dy=width.
 size_t pack_with_context(pack_context_t* ctx,
         const uint16_t* src, uint8_t* dest,
-        size_t dx, size_t dy) {
+        ssize_t dx, ssize_t dy) {
     if ((!ctx) || (!src) || (!dest)) return 0;
     if (ctx->bpp != 12) return 0;
     if ((dx == 0) || (dy == 0)) return 0;
@@ -399,7 +399,7 @@ size_t pack_with_context(pack_context_t* ctx,
 // direction, i.e. to unpack the whole output array, dx=1 and dy=width.
 int unpack_with_context(pack_context_t* ctx,
         const uint8_t* src, size_t src_size, uint16_t* dest,
-        size_t dx, size_t dy) {
+        ssize_t dx, ssize_t dy) {
     if ((!ctx) || (!src) || (!dest)) return 0;
     if (ctx->bpp != 12) return 0;
     if ((src_size == 0) || (dx == 0) || (dy == 0)) return 0;

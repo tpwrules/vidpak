@@ -50,10 +50,8 @@ cdef class PackContext:
         cdef const uint16_t[:, :] src_arr = src
         if (src_arr.strides[0] & 1) or (src_arr.strides[1] & 1):
             raise ValueError("input strides can't be odd")
-        if (src_arr.strides[0] <= 0) or (src_arr.strides[1] <= 0):
-            raise ValueError("input strides must be positive")
-        cdef size_t dx = src_arr.strides[1]//2
-        cdef size_t dy = src_arr.strides[0]//2
+        cdef ssize_t dx = src_arr.strides[1]//2
+        cdef ssize_t dy = src_arr.strides[0]//2
         if src_arr.shape[1] != self._ctx_w or src_arr.shape[0] != self._ctx_h:
             raise ValueError("source dimensions don't match context dimensions")
 
@@ -87,10 +85,8 @@ cdef class PackContext:
         cdef uint16_t[:, :] dest_arr = dest
         if (dest_arr.strides[0] & 1) or (dest_arr.strides[1] & 1):
             raise ValueError("output strides can't be odd")
-        if (dest_arr.strides[0] <= 0) or (dest_arr.strides[1] <= 0):
-            raise ValueError("output strides must be positive")
-        cdef size_t dx = dest_arr.strides[1]//2
-        cdef size_t dy = dest_arr.strides[0]//2
+        cdef ssize_t dx = dest_arr.strides[1]//2
+        cdef ssize_t dy = dest_arr.strides[0]//2
         if dest_arr.shape[1] != self._ctx_w or dest_arr.shape[0] != self._ctx_h:
             raise ValueError("dest dimensions don't match context dimensions")
 

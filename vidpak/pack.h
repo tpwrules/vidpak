@@ -26,13 +26,13 @@ size_t pack_calc_max_packed_size(pack_context_t* ctx);
 // to pack the whole input array, dx=1 and dy=width. 
 size_t pack_with_context(pack_context_t* ctx,
         const uint16_t* src, uint8_t* dest,
-        size_t dx, size_t dy);
+        ssize_t dx, ssize_t dy);
 // unpack a frame using the specified context. returns 1 if successful or 0 if
 // failed. src_size MUST BE exactly the size returned by pack_with_context. dx
 // and dy are the number of pixels to advance after each pixel in the x and y
 // direction, i.e. to unpack the whole output array, dx=1 and dy=width.
 int unpack_with_context(pack_context_t* ctx,
         const uint8_t* src, size_t src_size, uint16_t* dest,
-        size_t dx, size_t dy);
+        ssize_t dx, ssize_t dy);
 
 #endif
