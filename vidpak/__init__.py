@@ -12,6 +12,8 @@ Finite State Entropy algorithm.
 Currently, only an averaging predictor over 12 bits per pixel data is supported.
 """
 
+__VERSION__ = "0.4.2"
+
 from vidpak.file import VidpakFileReader, VidpakFileWriter
 
 __all__ = ["VidpakFileReader", "VidpakFileWriter"]
