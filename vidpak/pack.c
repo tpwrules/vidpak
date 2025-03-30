@@ -246,6 +246,11 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
     size_t sb = 2*slices; // bytes of raw data
     if (src_size == 0) { // invalid pointer was passed in
         return 0;
+    } else if (src_size == sb+2) { // all the input values were the same
+        uint16_t v = ((uint16_t)src[sb+1] << 8) | src[sb]; // get the value
+        for (size_t i=slices; i<pixels; i++) { // and fill the buffer with it
+            diff[i] = v;
+        }
     } else if (src_size == bytes) { // input is not compressed
         for (ssize_t y=0; y!=dy*(ssize_t)height; y+=dy) {
             for (ssize_t x=0; x!=dx*(ssize_t)width; x+=dx) {
@@ -255,11 +260,6 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
             }
         }
         return 1;
-    } else if (src_size == sb+2) { // all the input values were the same
-        uint16_t v = ((uint16_t)src[sb+1] << 8) | src[sb]; // get the value
-        for (size_t i=slices; i<pixels; i++) { // and fill the buffer with it
-            diff[i] = v;
-        }
     } else { // data is actually compressed
         size_t ret = FSE_decompressU16(diff+slices, pixels-slices,
             src+sb, src_size-sb);
