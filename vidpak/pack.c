@@ -200,13 +200,27 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
     }
 
     // compress the differences
-    size_t sb = 2*slices; // bytes of raw data
+    size_t sb = 2*slices; // bytes of slice starts (raw data)
+    // FSE compressor return values:
+    //  -FSE_error_dstSize_tooSmall if insufficient space (we treat as 0)
+    //  -error if something went wrong (we bail)
+    //  0 if 0 values (pixels-slices == 0)
+    //  0 if output is no smaller than input (general case of the above)
+    //  1 if 1 value (pixels-slices == 1)
+    //  1 if all input values are the same (general case of the above)
+    //      could make sense to treat as 0, but 1 is how existing files are
+    //  2 < num_bytes < (bytes-sb) otherwise (compression successful)
+    //      a return of 2 would confuse the unpacker but it's not possible
     size_t ret = FSE_compressU16(dest+sb, bytes-sb,
         diff+slices, pixels-slices, 4095, 0);
     if (-ret == FSE_error_dstSize_tooSmall) ret = 0; // ran out of space
     if (FSE_isError(ret)) { // something else went wrong, bail out
         return 0;
-    } else if (ret == 0) { // compressed result is bigger than input
+    } else if (ret == 1) { // all the difference values are the same
+        dest[sb] = diff[slices] & 0xFF; // store that value
+        dest[sb+1] = diff[slices] >> 8;
+        return sb+2;
+    } else if (ret == 0) { // compressed differences no smaller than input
         // so just return the input as the result
         for (ssize_t y=0; y!=dy*(ssize_t)height; y+=dy) {
             for (ssize_t x=0; x!=dx*(ssize_t)width; x+=dx) {
@@ -215,13 +229,10 @@ static size_t pack_12bit_average(size_t width, size_t height, void* diff_,
                 *dest++ = (p >> 8) & 0x0F;
             }
         }
+        // bytes != sb+2, because if so, pixels-slices == 1, so FSE returned 1
         return bytes;
-    } else if (ret == 1) { // all the input values are the same
-        dest[sb] = diff[slices] & 0xFF; // store that value
-        dest[sb+1] = diff[slices] >> 8;
-        return sb+2;
-    } else { // 8 bytes of initial pixel of each slice + compressed data
-        return sb+ret;
+    } else { // bytes of initial pixel of each slice + compressed differences
+        return sb+ret; // ret is always > 2 and < (bytes-sb)
     }
 }
 
@@ -243,15 +254,16 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
     size_t slices = (height < 4) ? height : 4;
 
     // uncompress the differences
-    size_t sb = 2*slices; // bytes of raw data
+    size_t sb = 2*slices; // bytes of slice starts (raw data)
     if (src_size == 0) { // invalid pointer was passed in
         return 0;
-    } else if (src_size == sb+2) { // all the input values were the same
+    } else if (src_size == sb+2) { // all the difference values were the same
+        // this is the case if sb+2 == bytes, see packer for details
         uint16_t v = ((uint16_t)src[sb+1] << 8) | src[sb]; // get the value
         for (size_t i=slices; i<pixels; i++) { // and fill the buffer with it
             diff[i] = v;
         }
-    } else if (src_size == bytes) { // input is not compressed
+    } else if (src_size == bytes) { // input is not compressed and is the result
         for (ssize_t y=0; y!=dy*(ssize_t)height; y+=dy) {
             for (ssize_t x=0; x!=dx*(ssize_t)width; x+=dx) {
                 uint16_t l = *src++;
@@ -260,7 +272,7 @@ static int unpack_12bit_average(size_t width, size_t height, void* diff_,
             }
         }
         return 1;
-    } else { // data is actually compressed
+    } else { // differences are actually compressed
         size_t ret = FSE_decompressU16(diff+slices, pixels-slices,
             src+sb, src_size-sb);
         if (FSE_isError(ret)) {
