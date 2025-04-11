@@ -62,6 +62,10 @@ def main_pack():
     else:
         memfd = None
         dest_path = args.output
+        if args.verify and dest_path == "/dev/null":
+            # common mistake with an otherwise puzzling error
+            raise ValueError("Verification requires a real output file, "
+                "not /dev/null.")
     # for now we can only deal with 12bpp files
     writer = VidpakFileWriter(dest_path, size, 12, tile_size)
     if args.verify:
