@@ -1,6 +1,6 @@
-"""Pack and unpack frames in Vidpak files.
+"""Pack and unpack frames in vidpak files.
 
-Vidpak losslessly compresses video data at extremely high speed while retaining
+vidpak losslessly compresses video data at extremely high speed while retaining
 good compression ratios.
 
 Each frame is first cut into a number of equally-sized non-overlapping tiles,

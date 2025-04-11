@@ -1,4 +1,4 @@
-"""Read and write Vidpak files."""
+"""Read and write vidpak files."""
 
 import struct
 import threading
@@ -16,7 +16,7 @@ FrameHeader = namedtuple("FrameHeader", [
 
 
 class VidpakFileReader:
-    """Read and unpack frames from a Vidpak file.
+    """Read and unpack frames from a vidpak file.
 
     The reader is not thread-safe. It is possible to open the same file in
     different readers if necessary.
@@ -56,7 +56,7 @@ class VidpakFileReader:
         Parameters
         ----------
         fname : str or pathlib.Path object
-            Path to the Vidpak file on disk.
+            Path to the vidpak file on disk.
         endless: bool, optional, default False
             If True, the file is opened in endless mode.
         """
@@ -355,7 +355,7 @@ class VidpakFileReader:
 
 
 class VidpakFileWriter:
-    """Pack and write frames into a Vidpak file.
+    """Pack and write frames into a vidpak file.
 
     The writer is not thread-safe. It is possible to open the file in one or
     more readers. See the documentation on VidpakFileReader for caveats.
@@ -384,7 +384,7 @@ class VidpakFileWriter:
         Parameters
         ----------
         fname : str or pathlib.Path object
-            Path to the Vidpak file on disk. It is created if it does not exist,
+            Path to the vidpak file on disk. It is created if it does not exist,
             or truncated if it does.
         size : (int, int)
             Tuple of the width and height of the frames to pack in pixels.
