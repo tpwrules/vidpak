@@ -1,6 +1,7 @@
 # vidpak
 
-vidpak losslessly compresses 12-bit grayscale scientific camera video.
+vidpak losslessly compresses 12-bit scientific video data at extremely high
+speed while retaining good compression ratios.
 
 ## Installation
 

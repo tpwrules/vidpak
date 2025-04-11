@@ -1,7 +1,7 @@
 """Pack and unpack frames in vidpak files.
 
-vidpak losslessly compresses video data at extremely high speed while retaining
-good compression ratios.
+vidpak losslessly compresses 12-bit scientific video data at extremely high
+speed while retaining good compression ratios.
 
 Each frame is first cut into a number of equally-sized non-overlapping tiles,
 which are compressed independently. A prediction algorithm is run over each tile
