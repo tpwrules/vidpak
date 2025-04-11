@@ -23,7 +23,7 @@ extensions = [
 setup(
     name="vidpak",
     version="0.4.2",
-    install_requires=["Cython", "numpy"],
+    install_requires=["numpy"],
     packages=["vidpak"],
     ext_modules=cythonize(extensions,
         compiler_directives={'language_level': "3"}),
