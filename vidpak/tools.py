@@ -7,11 +7,14 @@ import threading
 import queue
 import numpy as np
 
-from vidpak import VidpakFileReader, VidpakFileWriter
+from vidpak import VidpakFileReader, VidpakFileWriter, __version__
 
 def main_pack():
-    parser = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(prog="vidpak",
         description="Pack raw video data into a vidpak file.")
+    parser.add_argument('--version', action="version",
+        version=f"%(prog)s v{__version__}")
+
     parser.add_argument('input', type=str,
         help="Path to raw input file (or - to read from stdin).")
     parser.add_argument('output', type=str,
@@ -147,8 +150,11 @@ def main_pack():
                 exit(1)
 
 def main_unpack():
-    parser = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(prog="vidunpak",
         description="Unpack raw video data from a vidpak file.")
+    parser.add_argument('--version', action="version",
+        version=f"%(prog)s v{__version__}")
+
     parser.add_argument('input', type=str,
         help="Path to vidpak input file.")
     parser.add_argument('output', type=str,
