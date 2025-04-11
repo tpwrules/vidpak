@@ -11,25 +11,29 @@ from vidpak import VidpakFileReader, VidpakFileWriter
 
 def main_pack():
     parser = argparse.ArgumentParser(
-        description="Pack raw video data into a Vidpak file.")
+        description="Pack raw video data into a vidpak file.")
     parser.add_argument('input', type=str,
         help="Path to raw input file (or - to read from stdin).")
     parser.add_argument('output', type=str,
-        help="Path to Vidpak output file.")
+        help="Path to vidpak output file.")
     parser.add_argument('-s', '--size', type=str, required=True,
         help="Width and height (as in WxH) of each frame.")
     parser.add_argument('-t', '--tile-size', type=str,
-        help="Width and height (as in WxH) of each packed tile.")
+        help="Width and height (as in WxH) of each packed tile. Same as frame "
+            "size if unspecified.")
     parser.add_argument('-n', '--num-frames', type=int,
         help="Only pack the first n frames.")
     parser.add_argument('-f', '--framerate', type=float, default=30,
-        help="Nominal framerate used for determining frame timestamps.")
+        help="Nominal framerate used for determining frame timestamps, 30 if "
+            "unspecified.")
     parser.add_argument('--no-frame-pos', action="store_true",
-        help="Don't write frame position table.")
+        help="Don't write frame position table necessary for fast seeking.")
     parser.add_argument('--verify', action="store_true",
-        help="Unpack each frame and verify it matches the original.")
+        help="Read back each frame from the output file and verify it matches "
+            "the original.")
     parser.add_argument('--mem', action="store_true",
-        help="Pack only into memory (for e.g. benchmarking). (Linux only!)")
+        help="Pack into memory file, ignoring output file (for e.g. "
+            "benchmarking). (Linux only!)")
 
     args = parser.parse_args()
 
@@ -140,9 +144,9 @@ def main_pack():
 
 def main_unpack():
     parser = argparse.ArgumentParser(
-        description="Unpack raw video data from a Vidpak file.")
+        description="Unpack raw video data from a vidpak file.")
     parser.add_argument('input', type=str,
-        help="Path to Vidpak input file.")
+        help="Path to vidpak input file.")
     parser.add_argument('output', type=str,
         help="Path to raw output file (or - to write to stdout).")
     parser.add_argument('-n', '--num-frames', type=int,
