@@ -105,6 +105,16 @@ for frame_num in range(num_frames):
 reader.close()
 ```
 
+## Stability
+
+The vidpak file format is currently at version 2. Changes will likely be made in
+the future to support different prediction and compression modes, causing an
+increment to version 3, which the current version of vidpak will reject.
+However, future versions of vidpak will still be able to decompress version 1
+and 2 files.
+
+Nevertheless, no absolute guarantee will yet be made, particularly in light of
+the 0.x.y version and license.
 
 ## License
 
