@@ -2,7 +2,7 @@
 
 buildPythonPackage rec {
   pname = "vidpak";
-  version = "0.4.2";
+  version = "0.4.3";
 
   # TODO: figure nicer ways to not have to specify each dir?
   src = lib.sourceByRegex ./. [
